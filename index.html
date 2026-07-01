@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>能力圈诊断工具 · 你真的懂这家公司吗？</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --canvas:   #faf9f5;
+  --card:     #efe9de;
+  --dark:     #181715;
+  --hairline: #e6dfd8;
+  --ink:      #141413;
+  --body:     #3d3d3a;
+  --muted:    #6c6a64;
+  --soft:     #8e8b82;
+  --coral:    #cc785c;
+  --coral-light: #f2ddd6;
+  --green:    #5db872;
+  --green-bg: #f4faf6;
+  --red:      #c64545;
+  --red-bg:   #fef5f5;
+  --amber:    #e8a55a;
+  --amber-bg: #fefaf3;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--canvas);
+  display: flex; justify-content: center;
+  padding: 24px 12px 80px;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.app { width: 100%; max-width: 680px; }
+
+/* ═══════════ HEADER ═══════════ */
+.app-header {
+  text-align: center; padding: 32px 0 24px;
+}
+.app-header .badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--card); padding: 5px 14px;
+  border-radius: 9999px; font-size: 11px; font-weight: 600;
+  color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.app-header .badge-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--coral);
+}
+.app-header h1 {
+  font-size: 26px; font-weight: 700; line-height: 1.25; letter-spacing: -0.5px;
+  color: var(--ink); margin-bottom: 6px;
+}
+.app-header .sub {
+  font-size: 14px; color: var(--muted); line-height: 1.5;
+}
+
+/* ═══════════ CARD ═══════════ */
+.card {
+  background: #fff; border: 1px solid var(--hairline);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  margin-bottom: 16px;
+}
+.card-body { padding: 28px; }
+
+/* ═══════════ INPUT ═══════════ */
+.input-group { margin-bottom: 18px; }
+.input-group label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--ink); margin-bottom: 6px;
+}
+.input-group input, .input-group textarea {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--hairline);
+  border-radius: 10px; font-size: 15px; font-family: var(--font);
+  color: var(--ink); background: #fdfcf9; transition: border 0.2s;
+  -webkit-appearance: none;
+}
+.input-group input:focus, .input-group textarea:focus {
+  outline: none; border-color: var(--coral); background: #fff;
+}
+.input-group textarea { min-height: 72px; resize: vertical; }
+.input-group .hint { font-size: 12px; color: var(--soft); margin-top: 4px; }
+
+/* ═══════════ MODE SELECTOR ═══════════ */
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.mode-card {
+  padding: 16px; border: 2px solid var(--hairline); border-radius: 12px;
+  cursor: pointer; text-align: center; transition: all 0.2s;
+}
+.mode-card:hover { border-color: var(--coral); }
+.mode-card.selected { border-color: var(--coral); background: var(--coral-light); }
+.mode-card .mode-icon { font-size: 28px; margin-bottom: 6px; }
+.mode-card .mode-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.mode-card .mode-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.mode-card .mode-time { font-size: 11px; color: var(--soft); margin-top: 4px; }
+
+/* ═══════════ BUTTONS ═══════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 600;
+  border: none; cursor: pointer; font-family: var(--font);
+  transition: all 0.2s; width: 100%;
+}
+.btn-primary { background: var(--coral); color: #fff; }
+.btn-primary:hover { background: #b86a50; }
+.btn-primary:disabled { background: #d4a99a; cursor: not-allowed; }
+.btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--hairline); }
+.btn-outline:hover { background: var(--canvas); }
+.btn-small { width: auto; padding: 8px 18px; font-size: 13px; }
+.btn-skip {
+  width: auto; padding: 8px 16px; font-size: 13px; font-weight: 500;
+  color: var(--soft); background: none; border: none; cursor: pointer;
+}
+.btn-skip:hover { color: var(--muted); }
+
+/* ═══════════ PROGRESS ═══════════ */
+.progress-bar { display: flex; gap: 4px; margin-bottom: 20px; }
+.progress-step {
+  flex: 1; height: 3px; border-radius: 2px; background: var(--hairline);
+  transition: background 0.3s;
+}
+.progress-step.active { background: var(--coral); }
+.progress-step.done { background: var(--green); }
+
+/* ═══════════ PHASE DIVIDER ═══════════ */
+.phase-divider {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 0 20px; margin-top: 8px;
+}
+.phase-divider .phase-line { flex: 1; height: 1px; background: var(--hairline); }
+.phase-divider .phase-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--soft); flex-shrink: 0;
+}
+.phase-divider .phase-label.optional { color: var(--amber); }
+
+/* ═══════════ QUESTION ═══════════ */
+.question-number {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--coral); margin-bottom: 6px;
+}
+.question-dimension {
+  display: inline-block; padding: 2px 10px; border-radius: 6px;
+  background: var(--coral-light); color: var(--coral);
+  font-size: 11px; font-weight: 600; margin-bottom: 10px;
+}
+.question-text {
+  font-size: 16px; font-weight: 600; line-height: 1.5; color: var(--ink);
+  margin-bottom: 16px;
+}
+.question-context {
+  font-size: 12px; color: var(--soft); margin-bottom: 14px;
+}
+
+/* ═══════════ MCQ OPTIONS ═══════════ */
+.mcq-options { display: flex; flex-direction: column; gap: 8px; }
+.mcq-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 13px 14px; border: 1.5px solid var(--hairline); border-radius: 10px;
+  cursor: pointer; transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.mcq-option:hover { border-color: var(--coral); background: #fefbf9; }
+.mcq-option.selected { border-color: var(--coral); background: var(--coral-light); }
+.mcq-option.correct-reveal { border-color: var(--green); background: var(--green-bg); }
+.mcq-option.wrong-reveal { border-color: var(--red); background: var(--red-bg); }
+.mcq-radio {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--hairline); display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; margin-top: 1px;
+}
+.mcq-option.selected .mcq-radio { border-color: var(--coral); background: var(--coral); }
+.mcq-option.selected .mcq-radio::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+}
+.mcq-option-text { font-size: 14px; line-height: 1.5; color: var(--body); }
+.mcq-option.selected .mcq-option-text { color: var(--ink); }
+
+/* ═══════════ LOADING ═══════════ */
+.loading-state { text-align: center; padding: 40px 24px; }
+.loading-spinner {
+  width: 36px; height: 36px; border: 3px solid var(--hairline);
+  border-top-color: var(--coral); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 18px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 15px; color: var(--muted); }
+.loading-sub { font-size: 13px; color: var(--soft); margin-top: 4px; }
+
+/* ═══════════ RESULTS ═══════════ */
+.result-header {
+  text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--hairline);
+  margin-bottom: 20px;
+}
+.result-score-circle {
+  width: 96px; height: 96px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+}
+.score-big { font-size: 38px; font-weight: 700; line-height: 1; }
+.score-label { font-size: 11px; font-weight: 500; margin-top: 2px; }
+.result-title { font-size: 19px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.result-subtitle { font-size: 14px; color: var(--muted); line-height: 1.5; }
+.result-mode-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; margin-top: 8px;
+}
+
+.radar-container { max-width: 360px; margin: 0 auto 20px; }
+.radar-container canvas { width: 100% !important; }
+
+/* ═══════════ DIMENSION SCORES ═══════════ */
+.dimension-scores { margin-bottom: 20px; }
+.dim-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.dim-row:last-child { border-bottom: none; }
+.dim-name { width: 90px; font-size: 12px; font-weight: 500; color: var(--ink); flex-shrink: 0; }
+.dim-bar-bg { flex: 1; height: 7px; border-radius: 4px; background: var(--hairline); overflow: hidden; }
+.dim-bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+.dim-score { width: 24px; text-align: right; font-size: 13px; font-weight: 700; }
+
+/* ═══════════ INSIGHT ═══════════ */
+.insight-box {
+  padding: 16px 18px; border-radius: 10px; margin-bottom: 14px; line-height: 1.55;
+}
+.insight-key { background: var(--coral-light); color: var(--coral); font-weight: 600; font-size: 15px; }
+.insight-detail { background: var(--canvas); color: var(--body); font-size: 13px; }
+
+/* ═══════════ LEARNING PATH ═══════════ */
+.learning-path { margin-top: 20px; }
+.learning-path h3 { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
+.learning-step {
+  display: flex; gap: 12px; padding: 14px 0; align-items: flex-start;
+  border-bottom: 1px solid var(--hairline);
+}
+.learning-step:last-child { border-bottom: none; }
+.step-num {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--dark);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.step-content { flex: 1; }
+.step-title { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.4; margin-bottom: 4px; }
+.step-detail { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.step-resource {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 6px; padding: 4px 10px; background: var(--green-bg);
+  border-radius: 6px; font-size: 12px; color: var(--green); font-weight: 500;
+  text-decoration: none; word-break: break-all;
+}
+.step-resource:hover { background: #d8f0dd; }
+
+/* ═══════════ MCQ REVIEW ═══════════ */
+.mcq-review { margin-top: 20px; }
+.mcq-review h3 { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
+.mcq-review-item {
+  padding: 14px 16px; border-radius: 10px; margin-bottom: 10px;
+  border: 1px solid var(--hairline);
+}
+.mcq-review-item.correct { border-color: #c3e6cb; background: var(--green-bg); }
+.mcq-review-item.wrong   { border-color: #f9d8d8; background: var(--red-bg); }
+.mcq-review-q { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.4; margin-bottom: 8px; }
+.mcq-review-answer { font-size: 13px; line-height: 1.5; margin-bottom: 4px; }
+.mcq-review-explain { font-size: 13px; line-height: 1.5; color: var(--muted); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--hairline); }
+
+/* ═══════════ MASTER COMPARISON ═══════════ */
+.master-compare { margin-top: 20px; }
+.master-compare h3 { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 12px; }
+.master-card {
+  padding: 16px; border-radius: 10px; margin-bottom: 10px;
+  border: 1px solid var(--hairline); background: #fff;
+}
+.master-card-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.master-avatar {
+  width: 36px; height: 36px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+.master-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+.master-company { font-size: 12px; color: var(--soft); }
+.master-insight { font-size: 13px; line-height: 1.55; color: var(--body); }
+.master-lesson {
+  margin-top: 8px; padding: 8px 12px; background: var(--amber-bg);
+  border-radius: 8px; font-size: 13px; line-height: 1.5; color: #8b6914;
+}
+
+/* ═══════════ FOOTER ACTIONS ═══════════ */
+.footer-actions { text-align: center; margin-top: 24px; }
+
+/* ═══════════ ERROR ═══════════ */
+.alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
+.alert-error { background: var(--red-bg); color: var(--red); border: 1px solid #f9d8d8; }
+
+/* ═══════════ RESPONSIVE ═══════════ */
+@media (max-width: 500px) {
+  .card-body { padding: 18px; }
+  .app-header { padding: 20px 0 16px; }
+  .app-header h1 { font-size: 21px; }
+  .question-text { font-size: 15px; }
+  .mcq-option { padding: 12px; }
+  .mcq-option-text { font-size: 13px; }
+  .mode-cards { grid-template-columns: 1fr; }
+  .dim-name { width: 70px; font-size: 11px; }
+}
+
+/* ═══════════ TIP CAROUSEL ═══════════ */
+.tip-carousel { position: relative; margin-top: 20px; }
+.tip-cards-wrapper { overflow: hidden; border-radius: 10px; }
+.tip-cards-track { display: flex; transition: transform 0.35s ease; }
+.tip-card-item {
+  min-width: 100%; padding: 14px 16px; background: var(--canvas);
+  border-radius: 10px; font-size: 13px; line-height: 1.55; color: var(--body);
+  box-sizing: border-box;
+}
+.tip-card-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--soft);
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.tip-nav-row {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-top: 10px;
+}
+.tip-arrow {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--hairline);
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--muted); transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.tip-arrow:hover { border-color: var(--coral); color: var(--coral); }
+.tip-arrow:active { background: var(--coral-light); }
+.tip-dots { display: flex; gap: 6px; }
+.tip-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--hairline);
+  cursor: pointer; transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tip-dot.active { background: var(--coral); width: 16px; border-radius: 3px; }
+
+/* ═══════════ CRITICAL ANSWER ═══════════ */
+.critical-answer-section { margin-top: 14px; }
+.critical-feedback {
+  margin-top: 10px; padding: 14px; background: var(--amber-bg);
+  border-radius: 10px; font-size: 13px; line-height: 1.55; color: #8b6914;
+}
+
+/* ═══════════ MOBILE FIXES ═══════════ */
+@media (max-width: 500px) {
+  .card-body { padding: 16px; }
+  .app-header { padding: 16px 0 12px; }
+  .app-header h1 { font-size: 20px; }
+  .question-text { font-size: 15px; }
+  .mcq-option { padding: 11px 10px; }
+  .mcq-option-text { font-size: 13px; }
+  .mcq-radio { width: 18px; height: 18px; }
+  .mode-cards { grid-template-columns: 1fr; }
+  .dim-name { width: 65px; font-size: 10px; }
+  .btn { padding: 12px 20px; font-size: 14px; }
+  .master-card { padding: 12px; }
+  .tip-arrow { width: 32px; height: 32px; font-size: 16px; }
+  .tip-dot { width: 8px; height: 8px; }
+  .tip-dot.active { width: 20px; }
+  .result-score-circle { width: 80px; height: 80px; }
+  .score-big { font-size: 30px; }
+  .radar-container { max-width: 280px; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══════ HEADER ═══════ -->
+  <div class="app-header">
+    <div class="badge"><span class="badge-dot"></span>价值投资 · 能力圈诊断</div>
+    <h1>你真的懂这家公司吗？</h1>
+    <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题快速诊断 + 可选深度简答</p>
+  </div>
+
+  <!-- ═══════ SCREEN: INPUT ═══════ -->
+  <div id="screen-input" class="card">
+
+  <!-- ═══════ SCREEN: INPUT ═══════ -->
+  <div id="screen-input" class="card">
+    <div class="card-body">
+      <div class="input-group">
+        <label>你要诊断哪家公司？</label>
+        <input type="text" id="company-name" placeholder="例如：茅台、特斯拉、英伟达、腾讯……" autofocus>
+      </div>
+      <div class="input-group">
+        <label>简单说说你为什么觉得自己懂这家公司（选填）</label>
+        <textarea id="user-claim" placeholder="例如：我研究白酒三年了 / 我在这个行业工作 / 我读过所有年报……"></textarea>
+        <div class="hint">写了会让问题更有针对性，不写也行。</div>
+      </div>
+
+      <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">诊断模式</label>
+      <div class="mode-cards">
+        <div class="mode-card selected" id="mode-quick" onclick="selectMode('quick')">
+          <div class="mode-icon">⚡</div>
+          <div class="mode-title">快速诊断</div>
+          <div class="mode-desc">15 道选择题<br>模糊判断能力圈等级</div>
+          <div class="mode-time">≈ 4 分钟</div>
+        </div>
+        <div class="mode-card" id="mode-deep" onclick="selectMode('deep')">
+          <div class="mode-icon">🔬</div>
+          <div class="mode-title">深度诊断</div>
+          <div class="mode-desc">15 道题 + 3 道追问简答<br>精确评分 + 详细分析</div>
+          <div class="mode-time">≈ 10 分钟</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-start" onclick="startDiagnosis()">
+        <span>开始诊断</span>
+        <span style="font-size:18px;">→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREEN: LOADING QUESTIONS ═══════ -->
+  <div id="screen-loading-questions" class="card" style="display:none;">
+    <div class="card-body">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-q-title">AI 正在生成诊断题目……</div>
+        <div class="loading-sub" id="loading-company-label"></div>
+        <div style="margin-top:18px;width:200px;height:3px;background:var(--hairline);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
+          <div id="loading-q-progress" style="height:100%;width:0%;background:var(--coral);border-radius:2px;transition:width 0.3s;"></div>
+        </div>
+        <div class="tip-carousel">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--soft);text-transform:uppercase;margin-bottom:8px;">💬 你可能想知道</div>
+          <div class="tip-cards-wrapper">
+            <div class="tip-cards-track" id="tip-track-q"></div>
+          </div>
+          <div class="tip-nav-row">
+            <button class="tip-arrow" onclick="tipPrev('q')">←</button>
+            <div class="tip-dots" id="tip-dots-q"></div>
+            <button class="tip-arrow" onclick="tipNext('q')">→</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--soft);">预计等待 10-15 秒</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREEN: QUESTIONS ═══════ -->
+  <div id="screen-questions" class="card" style="display:none;">
+    <div class="card-body">
+      <div class="progress-bar" id="progress-bar"></div>
+      <div id="question-container"></div>
+      <div style="display:flex;gap:10px;margin-top:18px;align-items:center;">
+        <button class="btn btn-outline btn-small" id="btn-prev" onclick="prevQuestion()" style="display:none;">← 上一题</button>
+        <button class="btn btn-primary" id="btn-next" onclick="nextQuestion()">下一题 →</button>
+        <button class="btn-skip" id="btn-skip" onclick="skipOpenEnded()" style="display:none;">跳过简答 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREEN: LOADING RESULTS ═══════ -->
+  <div id="screen-loading-results" class="card" style="display:none;">
+    <div class="card-body">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-r-title">AI 正在逐题分析你的回答……</div>
+        <div class="loading-sub" id="loading-r-sub">评估六维能力圈</div>
+        <div style="margin-top:18px;width:200px;height:3px;background:var(--hairline);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
+          <div id="loading-progress-bar" style="height:100%;width:0%;background:var(--coral);border-radius:2px;transition:width 0.3s;"></div>
+        </div>
+        <div class="tip-carousel">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--soft);text-transform:uppercase;margin-bottom:8px;">💬 你可能想知道</div>
+          <div class="tip-cards-wrapper">
+            <div class="tip-cards-track" id="tip-track-r"></div>
+          </div>
+          <div class="tip-nav-row">
+            <button class="tip-arrow" onclick="tipPrev('r')">←</button>
+            <div class="tip-dots" id="tip-dots-r"></div>
+            <button class="tip-arrow" onclick="tipNext('r')">→</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--soft);">预计等待 20-30 秒</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREEN: RESULTS ═══════ -->
+  <div id="screen-results" class="card" style="display:none;">
+    <div class="card-body">
+      <div class="result-header">
+        <div class="result-score-circle" id="score-circle"></div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-subtitle" id="result-subtitle"></div>
+        <div class="result-mode-badge" id="result-mode-badge"></div>
+      </div>
+
+      <div class="radar-container"><canvas id="radar-chart"></canvas></div>
+      <div class="dimension-scores" id="dimension-scores"></div>
+
+      <div class="insight-box insight-key" id="insight-key"></div>
+      <div class="insight-box insight-detail" id="insight-detail"></div>
+
+      <div class="mcq-review" id="mcq-review"></div>
+
+      <div class="master-compare" id="master-compare"></div>
+
+      <div class="learning-path" id="learning-path"></div>
+
+      <div class="footer-actions">
+        <button class="btn btn-outline btn-small" onclick="resetApp()">再测一家公司 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ SCREEN: ERROR ═══════ -->
+  <div id="screen-error" class="card" style="display:none;">
+    <div class="card-body" style="text-align:center;padding:40px 24px;">
+      <div style="font-size:40px;margin-bottom:12px;">😞</div>
+      <h3 style="color:var(--red);margin-bottom:10px;" id="error-title">出错了</h3>
+      <p style="color:var(--muted);font-size:14px;line-height:1.6;white-space:pre-wrap;" id="error-detail"></p>
+      <button class="btn btn-outline btn-small" style="margin-top:20px;" onclick="resetApp()">← 返回重试</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const PROXY_URL = '/api/proxy';
+const MODEL = 'deepseek-chat';
+
+// ═══════════════════════════════════════
+// KNOWLEDGE BASE
+// ═══════════════════════════════════════
+const KNOWLEDGE_BASE = `
+# 能力圈（Circle of Competence）
+
+## 核心定义
+能力圈 = 知道自己懂什么、不懂什么。它不是一张"你懂什么"的清单，而是一张"你不做什么"的清单。
+
+## 判断标准
+懂 = 能回答"这家公司为什么赚钱，能持续多久"
+- 你能不能把这家公司怎么赚钱，用一段话讲给你妈听？讲不清楚 = 不懂。全是专业术语 = 不懂。
+- 五年后、十年后，什么能阻止竞争对手复制它？答不上来 = 不懂护城河。
+- 管理层说过谎吗？产品在坑客户吗？回答不了 = 不懂管理层。
+
+## 段永平：不懂不投
+投资是一场你可以自己选题目的考试。不碰不懂的题，正确率天然就高。
+
+## 芒格：不是靠解决难题成功的，是靠避开难题成功的。
+真正重要的不是拓展知识边界，是搞清楚边界在哪。
+
+## 能力圈边界
+你每天消费的东西，你就能理解它的商业模式。不需要懂芯片怎么生产，需要懂的是这个企业怎么赚钱、为什么客户愿意付钱、竞争对手为什么抢不走。
+
+## FOMO是最大的考验
+看着别人在你划掉的地方赚钱——这种感觉经历过才知道。FOMO不是知识问题，是人性考验。
+
+## 六个判断维度
+1. 商业模式理解 — 能不能讲清楚"怎么赚钱"
+2. 竞争优势判断 — 能不能说清"护城河在哪"
+3. 财务/经营理解 — 能不能看懂关键经营指标
+4. 管理层判断 — 能不能评价管理层
+5. 行业/风险认知 — 能不能看清行业格局
+6. 自我认知诚实度 — 知不知道自己的边界在哪
+`;
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let state = {
+  company: '',
+  claim: '',
+  mode: 'quick',    // 'quick' | 'deep'
+  mcqs: [],         // [{id, dimension, question, options:[], correct, context, userAnswer:null}]
+  openEnded: [],    // [{id, dimension, question, context, answer:''}]
+  currentQ: 0,      // index into combined question list (MCQs first, then open-ended)
+  totalMCQ: 0,
+  results: null
+};
+
+// ═══════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════
+function showScreen(id) {
+  ['screen-input','screen-loading-questions','screen-questions','screen-loading-results','screen-results','screen-error']
+    .forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.style.display = (s === id) ? '' : 'none';
+    });
+}
+
+function showError(title, detail) {
+  document.getElementById('error-title').textContent = title;
+  document.getElementById('error-detail').textContent = detail;
+  showScreen('screen-error');
+  document.getElementById('btn-start').disabled = false;
+}
+
+function resetApp() {
+  state = { company: '', claim: '', mode: 'quick', mcqs: [], openEnded: [], currentQ: 0, totalMCQ: 0, results: null };
+  document.getElementById('company-name').value = '';
+  document.getElementById('user-claim').value = '';
+  document.getElementById('btn-start').disabled = false;
+  selectMode('quick');
+  showScreen('screen-input');
+  document.getElementById('company-name').focus();
+}
+
+function selectMode(mode) {
+  state.mode = mode;
+  document.getElementById('mode-quick').classList.toggle('selected', mode === 'quick');
+  document.getElementById('mode-deep').classList.toggle('selected', mode === 'deep');
+}
+
+// ═══════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════
+async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
+  const resp = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: messages,
+      temperature: temperature,
+      max_tokens: maxTokens
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`API 错误 (${resp.status}): ${err.slice(0, 300)}`);
+  }
+
+  const data = await resp.json();
+  return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════
+// STEP 1: GENERATE QUESTIONS
+// ═══════════════════════════════════════
+async function startDiagnosis() {
+  const company = document.getElementById('company-name').value.trim();
+  if (!company) { document.getElementById('company-name').focus(); return; }
+
+  state.company = company;
+  state.claim = document.getElementById('user-claim').value.trim();
+  state.mcqs = [];
+  state.openEnded = [];
+  state.currentQ = 0;
+  state.results = null;
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('loading-company-label').textContent = `公司：${company}  ·  ${state.mode === 'quick' ? '快速模式' : '深度模式'}`;
+  showScreen('screen-loading-questions');
+
+  try {
+    const systemPrompt = `你是一个价值投资诊断专家。你的框架基于巴菲特、芒格、段永平的能力圈理论。
+
+${KNOWLEDGE_BASE}
+
+## 你的任务
+用户声称对"${company}"有了解。你需要设计诊断题目来检验用户是否真的具备能力圈。
+
+## 必须生成的内容
+
+### Part A：15 道单选题（必须）
+- 六个维度各出题，分配如下：
+  - 商业模式理解：3 题
+  - 竞争优势判断：3 题
+  - 财务/经营理解：3 题
+  - 管理层判断：2 题
+  - 行业/风险认知：2 题
+  - 自我认知诚实度：2 题
+- 每题 4 个选项（A/B/C/D），只有一个正确答案
+- 题目必须针对"${company}"这家公司，不能是通用题
+- 选项要有迷惑性——错误选项要看起来像对的
+- 考的是"理解"而不是"数据记忆"
+
+### 关键要求：同维度题目形成逻辑递进链
+同一维度的题目之间要有逻辑关联，层层深入：
+- 第 1 题：基础理解（"知不知道"）
+- 第 2 题：深层判断（"真懂还是假懂"）
+- 第 3 题：极限场景（"边界在哪"）
+
+### Part B：3 道追问型简答题
+- 第 1 题：商业模式 + 护城河的综合追问
+- 第 2 题：针对"可能蒙对但没真懂"的追问
+- 第 3 题：极端场景：最坏情况发生时你的判断还成立吗
+
+## 输出格式
+严格按照以下JSON格式，不要输出任何其他内容：
+
+\`\`\`json
+{
+  "mcqs": [
+    {
+      "id": 1,
+      "dimension": "商业模式理解",
+      "question": "针对${company}的问题",
+      "options": ["A. 选项一", "B. 选项二", "C. 选项三", "D. 选项四"],
+      "correct": "A",
+      "context": "一句话说明为什么这个问题重要"
+    },
+    ...共15题
+  ],
+  "open_ended": [
+    {
+      "id": 16,
+      "dimension": "综合理解",
+      "question": "综合性的简答问题",
+      "context": "一句话说明为什么这个问题重要"
+    },
+    ...共3题
+  ]
+}
+\`\`\``;
+
+    const userPrompt = state.claim
+      ? `公司：${company}\n用户自述：${state.claim}\n请生成诊断题目。`
+      : `公司：${company}\n请生成诊断题目。`;
+
+    const content = await callDeepSeek([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ], 0.8, 4000);
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AI 返回格式异常，请重试');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed.mcqs || parsed.mcqs.length < 13) throw new Error('AI 生成的选择题数量不足');
+    if (!parsed.open_ended || parsed.open_ended.length < 3) throw new Error('AI 生成的简答题数量不足');
+
+    state.mcqs = parsed.mcqs.slice(0, 15).map(q => ({ ...q, userAnswer: null }));
+    state.openEnded = parsed.open_ended.slice(0, 3).map(q => ({ ...q, answer: '' }));
+    state.totalMCQ = state.mcqs.length;
+    state.currentQ = 0;
+
+    renderProgress();
+    renderQuestion();
+    showScreen('screen-questions');
+  } catch (err) {
+    console.error(err);
+    showError('生成题目失败', err.message);
+  }
+}
+
+// ═══════════════════════════════════════
+// QUESTION NAVIGATION
+// ═══════════════════════════════════════
+function totalQuestions() {
+  return state.mode === 'deep' ? state.totalMCQ + state.openEnded.length : state.totalMCQ;
+}
+
+function getCurrentQuestion() {
+  if (state.currentQ < state.totalMCQ) {
+    return { type: 'mcq', data: state.mcqs[state.currentQ], index: state.currentQ };
+  } else {
+    const oeIdx = state.currentQ - state.totalMCQ;
+    return { type: 'open', data: state.openEnded[oeIdx], index: oeIdx };
+  }
+}
+
+function renderProgress() {
+  const total = totalQuestions();
+  const bar = document.getElementById('progress-bar');
+  let html = '';
+  for (let i = 0; i < state.totalMCQ; i++) {
+    let cls = i < state.currentQ ? 'done' : (i === state.currentQ ? 'active' : '');
+    html += `<div class="progress-step ${cls}"></div>`;
+  }
+  if (state.mode === 'deep') {
+    html += '<div style="width:2px;flex-shrink:0;"></div>';
+    for (let i = 0; i < state.openEnded.length; i++) {
+      const idx = state.totalMCQ + i;
+      let cls = idx < state.currentQ ? 'done' : (idx === state.currentQ ? 'active' : '');
+      html += `<div class="progress-step ${cls}" style="background:${cls==='active'?'var(--amber)':cls==='done'?'var(--green)':'var(--hairline)'};"></div>`;
+    }
+  }
+  bar.innerHTML = html;
+}
+
+function renderQuestion() {
+  const total = totalQuestions();
+  const q = getCurrentQuestion();
+
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnSkip = document.getElementById('btn-skip');
+  btnPrev.style.display = state.currentQ > 0 ? '' : 'none';
+  btnSkip.style.display = 'none';
+
+  if (q.type === 'open') {
+    btnSkip.style.display = '';
+  }
+
+  if (state.currentQ === total - 1) {
+    btnNext.textContent = '提交诊断 →';
+  } else {
+    btnNext.textContent = '下一题 →';
+  }
+
+  if (q.type === 'mcq') {
+    renderMCQ(q);
+  } else {
+    renderOpenEnded(q);
+  }
+}
+
+function renderMCQ(q) {
+  const d = q.data;
+  const container = document.getElementById('question-container');
+
+  let optionsHTML = d.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    const selected = d.userAnswer === letter;
+    return `
+      <div class="mcq-option ${selected ? 'selected' : ''}" onclick="selectMCQ(${state.currentQ}, '${letter}')">
+        <div class="mcq-radio"></div>
+        <div class="mcq-option-text">${opt}</div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="question-number">选择题 ${state.currentQ + 1} / ${state.totalMCQ}</div>
+    <div class="question-dimension">${d.dimension}</div>
+    <div class="question-text">${d.question}</div>
+    <div class="mcq-options">${optionsHTML}</div>
+  `;
+}
+
+function renderOpenEnded(q) {
+  const d = q.data;
+  const container = document.getElementById('question-container');
+
+  container.innerHTML = `
+    <div class="phase-divider">
+      <div class="phase-line"></div>
+      <div class="phase-label optional">🔬 深度简答（选做）</div>
+      <div class="phase-line"></div>
+    </div>
+    <div class="question-number">简答题 ${q.index + 1} / ${state.openEnded.length}</div>
+    <div class="question-dimension" style="background:var(--amber-bg);color:var(--amber);">${d.dimension}</div>
+    <div class="question-text">${d.question}</div>
+    <div class="question-context">💡 ${d.context}</div>
+    <div class="input-group" style="margin-top:14px;">
+      <label>你的回答（可选，跳过不影响快速诊断结果）</label>
+      <textarea id="answer-input" rows="4" placeholder="打字麻烦就跳过，点"跳过简答"继续……">${d.answer}</textarea>
+    </div>
+  `;
+
+  setTimeout(() => {
+    const input = document.getElementById('answer-input');
+    if (input) input.focus();
+  }, 100);
+}
+
+function selectMCQ(qIdx, letter) {
+  state.mcqs[qIdx].userAnswer = letter;
+  renderQuestion();
+}
+
+function skipOpenEnded() {
+  if (state.currentQ < totalQuestions() - 1) {
+    state.currentQ++;
+    renderProgress();
+    renderQuestion();
+  } else {
+    submitDiagnosis();
+  }
+}
+
+function prevQuestion() {
+  saveOpenAnswer();
+  if (state.currentQ > 0) {
+    state.currentQ--;
+    renderProgress();
+    renderQuestion();
+  }
+}
+
+function nextQuestion() {
+  const q = getCurrentQuestion();
+
+  if (q.type === 'mcq' && !q.data.userAnswer) {
+    // Shake or highlight - skip for now, just let them continue
+    if (!confirm('这道题还没选。确定跳过吗？')) return;
+  }
+
+  if (q.type === 'open') {
+    saveOpenAnswer();
+  }
+
+  if (state.currentQ < totalQuestions() - 1) {
+    state.currentQ++;
+    renderProgress();
+    renderQuestion();
+  } else {
+    if (q.type === 'open') saveOpenAnswer();
+    submitDiagnosis();
+  }
+}
+
+function saveOpenAnswer() {
+  const q = getCurrentQuestion();
+  if (q.type === 'open') {
+    const input = document.getElementById('answer-input');
+    if (input) {
+      state.openEnded[q.index].answer = input.value;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// STEP 2: EVALUATE
+// ═══════════════════════════════════════
+async function submitDiagnosis() {
+  showScreen('screen-loading-results');
+
+  try {
+    // Calculate MCQ scores
+    const mcqCorrect = state.mcqs.filter(q => q.userAnswer === q.correct).length;
+    const mcqTotal = state.mcqs.length;
+    const mcqScore = Math.round((mcqCorrect / mcqTotal) * 10);
+
+    // Per-dimension MCQ scores
+    const dimScores = {};
+    const dimTotals = {};
+    state.mcqs.forEach(q => {
+      if (!dimScores[q.dimension]) { dimScores[q.dimension] = 0; dimTotals[q.dimension] = 0; }
+      if (q.userAnswer === q.correct) dimScores[q.dimension]++;
+      dimTotals[q.dimension]++;
+    });
+
+    // Build MCQ analysis text
+    const mcqAnalysis = Object.keys(dimScores).map(d => {
+      const correct = dimScores[d];
+      const total = dimTotals[d];
+      const pct = Math.round((correct / total) * 100);
+      return `${d}：${correct}/${total} 正确（${pct}%）`;
+    }).join('\n');
+
+    const mcqDetail = state.mcqs.map((q, i) => {
+      const icon = q.userAnswer === q.correct ? '✅' : (q.userAnswer ? '❌' : '⬜');
+      return `${icon} Q${i+1} [${q.dimension}] ${q.question}\n   你的答案：${q.userAnswer || '未作答'} | 正确答案：${q.correct}`;
+    }).join('\n');
+
+    const hasOpenEnded = state.mode === 'deep' && state.openEnded.some(o => o.answer.trim());
+    const oeText = state.openEnded.map((o, i) =>
+      `【简答${i+1} · ${o.dimension}】\n问：${o.question}\n答：${o.answer || '（未作答）'}`
+    ).join('\n\n');
+
+    const systemPrompt = `你是一个价值投资能力圈评估专家。你的框架基于巴菲特、芒格、段永平的投资哲学。
+
+${KNOWLEDGE_BASE}
+
+## 你的任务
+根据用户的诊断数据，评估用户对"${state.company}"是否具备能力圈。
+
+## 诊断数据
+- 诊断模式：${state.mode === 'quick' ? '快速诊断（仅选择题）' : '深度诊断（选择题 + 简答题）'}
+- 选择题正确率：${mcqCorrect}/${mcqTotal}（${Math.round(mcqCorrect/mcqTotal*100)}%）
+
+## 评分要求
+${state.mode === 'quick' ? `
+因为是快速诊断（仅选择题），评分以等级制为主，不要给精确的 1-10 分。用以下等级：
+- A级（具备能力圈）：正确率 ≥ 80%
+- B级（基本理解）：正确率 60-79%
+- C级（初步了解）：正确率 40-59%
+- D级（尚未入门）：正确率 < 40%
+` : `
+因为是深度诊断（含简答题），请给出精确的六维 1-10 分评分。
+- 8-10分：理解深刻
+- 5-7分：有一定理解
+- 1-4分：理解肤浅
+`}
+
+## 逐题解析要求（重要）
+为每一道选择题生成解析。每道题包含：
+- question：题目原文
+- userAnswer：用户选了什么
+- correctAnswer：正确答案
+- isCorrect：对还是错
+- explanation：为什么正确答案是对的、用户错在哪里（如果答对了也要解释为什么对）。要让用户心服口服，知道自己的知识盲区在哪。
+
+## 大师对标要求（重要）
+找到巴菲特、芒格、段永平、李录这四位投资大师中，至少2位在"${state.company}"或其所在行业的投资经历和能力圈判断。对于每位大师：
+- master：大师名字
+- avatar：推荐一个 emoji（💰🧠🎯🏔️ 等）
+- company：大师投资的具体公司或行业
+- story：大师在这个行业/公司的投资经历（2-3句话，具体、有故事感）
+- competence_insight：大师在这个行业是怎么建立/运用能力圈的（他们懂什么、不懂什么、为什么投/为什么不投）
+- lesson：用户可以从大师身上学到什么（1-2句话，直接可执行的教训）
+
+如果大师和"${state.company}"没有直接交集，就找同行业的。如果同行业也没有，就找投资逻辑最接近的。
+
+## 学习路径要求（重要）
+学习路径必须具体、可执行。每条路径必须包含：
+- 具体要做什么
+- 具体资料名称和作者（如《聪明的投资者》格雷厄姆）
+- 如果涉及巴菲特致股东信，指明具体年份
+- 搜索关键词或链接提示
+
+## 附加题要求
+生成一个脑洞大开的附加题——如果只问一个问题来终极检验用户是否真懂"${state.company}"，你会问什么？这个问题应该是用户大概率答不上来、但真正懂的人能答出来的。
+
+## 输出格式
+${state.mode === 'quick' ? `
+\`\`\`json
+{
+  "level": "A级（具备能力圈）",
+  "level_desc": "等级说明一句话",
+  "overall_assessment": "一段150字以内的总体评价",
+  "key_insight": "最犀利的洞察",
+  "dimension_summary": {"商业模式理解": "一句话总结", ...},
+  "mcq_review": [
+    {"question": "原题", "userAnswer": "A", "correctAnswer": "B", "isCorrect": false, "explanation": "解释"},
+    ...
+  ],
+  "master_comparisons": [
+    {"master": "巴菲特", "avatar": "💰", "company": "可口可乐", "story": "...", "competence_insight": "...", "lesson": "..."},
+    ...
+  ],
+  "learning_path": [
+    {"title": "具体行动", "detail": "详细说明", "resource": "资料名称·作者", "link_hint": "搜索关键词或链接提示"},
+    ...
+  ],
+  "critical_question": "脑洞大开的终极检验问题"
+}
+\`\`\`
+` : `
+\`\`\`json
+{
+  "scores": {"商业模式理解": 7, "竞争优势判断": 5, "财务/经营理解": 4, "管理层判断": 6, "行业/风险认知": 5, "自我认知诚实度": 7},
+  "overall_level": "基本理解",
+  "overall_assessment": "一段200字以内的总体评价",
+  "key_insight": "最犀利的洞察",
+  "dimension_analysis": {"商业模式理解": {"strength": "...", "weakness": "..."}, ...},
+  "mcq_review": [
+    {"question": "原题", "userAnswer": "A", "correctAnswer": "B", "isCorrect": false, "explanation": "解释"},
+    ...
+  ],
+  "master_comparisons": [
+    {"master": "巴菲特", "avatar": "💰", "company": "可口可乐", "story": "...", "competence_insight": "...", "lesson": "..."},
+    ...
+  ],
+  "learning_path": [
+    {"title": "具体行动", "detail": "详细说明", "resource": "资料名称·作者", "link_hint": "搜索关键词或链接提示"},
+    ...
+  ],
+  "critical_question": "脑洞大开的终极检验问题"
+}
+\`\`\`
+`}
+请严格按照JSON格式输出。`;
+
+    const userPrompt = `公司：${state.company}
+诊断模式：${state.mode === 'quick' ? '快速' : '深度'}
+
+## 选择题结果
+${mcqAnalysis}
+
+## 逐题详情（请用这些数据生成 mcq_review 逐题解析）
+${mcqDetail}
+
+${hasOpenEnded ? '## 简答题回答\n' + oeText : '## 简答题\n用户选择了快速模式，未作答简答题。'}
+
+请评估。注意：
+1. 每道选择题都要有 explanation（解释为什么对/错）
+2. master_comparisons 至少找2位投资大师，不要虚构——用他们真实的、公开的投资案例或言论
+3. critical_question 要脑洞大开、出乎意料`;
+
+    const content = await callDeepSeek([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ], 0.4, 4000);
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AI 评估结果格式异常');
+
+    state.results = JSON.parse(jsonMatch[0]);
+    state.results.mcqScore = mcqScore;
+    state.results.mcqCorrect = mcqCorrect;
+    state.results.mcqTotal = mcqTotal;
+    state.results._dimScores = dimScores;
+    state.results._dimTotals = dimTotals;
+
+    renderResults();
+    showScreen('screen-results');
+  } catch (err) {
+    console.error(err);
+    showError('评估失败', err.message);
+  }
+}
+
+// ═══════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════
+function renderResults() {
+  const r = state.results;
+  const isQuick = state.mode === 'quick';
+
+  // ── Score circle ──
+  let circleColor, circleBg, displayScore, displayLabel;
+  if (isQuick) {
+    const level = r.level || '';
+    if (level.includes('A')) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
+    else if (level.includes('B')) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
+    else if (level.includes('C')) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
+    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
+    displayScore = r.level ? r.level.charAt(0) : '?';
+    displayLabel = r.level || '';
+  } else {
+    const scores = r.scores || {};
+    const vals = Object.values(scores);
+    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : 0;
+    if (avg >= 8) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
+    else if (avg >= 6) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
+    else if (avg >= 4) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
+    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
+    displayScore = avg;
+    displayLabel = r.overall_level || '';
+  }
+
+  const circle = document.getElementById('score-circle');
+  circle.style.background = circleBg;
+  circle.style.border = `3px solid ${circleColor}`;
+  const scoreLabelStyle = isQuick ? 'font-size:12px;' : 'font-size:11px;';
+  circle.innerHTML = `<div class="score-big" style="color:${circleColor};">${displayScore}</div><div class="score-label" style="color:${circleColor};${scoreLabelStyle}">${displayLabel}</div>`;
+
+  document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
+  document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
+
+  const modeBadge = document.getElementById('result-mode-badge');
+  modeBadge.textContent = isQuick ? '⚡ 快速诊断（仅选择题）' : '🔬 深度诊断';
+  modeBadge.style.background = isQuick ? 'var(--card)' : 'var(--amber-bg)';
+  modeBadge.style.color = isQuick ? 'var(--muted)' : 'var(--amber)';
+
+  // ── MCQ accuracy bar ──
+  document.getElementById('dimension-scores').innerHTML = isQuick
+    ? renderQuickDimensionBars(r)
+    : renderDeepDimensionBars(r);
+
+  // ── Radar ──
+  if (isQuick) {
+    renderQuickRadar(r);
+  } else {
+    renderDeepRadar(r.scores);
+  }
+
+  // ── Key insight ──
+  document.getElementById('insight-key').innerHTML = `🔍 <strong>核心洞察</strong><br>${r.key_insight || ''}`;
+
+  // ── Dimension detail ──
+  if (isQuick && r.dimension_summary) {
+    const dims = Object.keys(r.dimension_summary);
+    const detailHTML = dims.map(d =>
+      `<div style="margin-bottom:10px;"><strong style="color:var(--ink);">${d}</strong><br><span style="color:var(--muted);font-size:13px;">${r.dimension_summary[d]}</span></div>`
+    ).join('');
+    document.getElementById('insight-detail').innerHTML = detailHTML;
+  } else if (!isQuick && r.dimension_analysis) {
+    const da = r.dimension_analysis;
+    const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+    const detailHTML = dims.map(d => {
+      const a = da[d] || {};
+      return `<div style="margin-bottom:10px;"><strong style="color:var(--ink);">${d}</strong> <span style="color:var(--green);font-size:13px;">✅ ${a.strength||''}</span> <span style="color:var(--coral);font-size:13px;">⚠️ ${a.weakness||''}</span></div>`;
+    }).join('');
+    document.getElementById('insight-detail').innerHTML = detailHTML;
+  }
+
+  // ── MCQ Review ──
+  const mcqReview = r.mcq_review || [];
+  if (mcqReview.length > 0) {
+    const reviewHTML = `
+      <h3>📋 逐题解析</h3>
+      ${mcqReview.map((item, i) => `
+        <div class="mcq-review-item ${item.isCorrect ? 'correct' : 'wrong'}">
+          <div class="mcq-review-q">${item.isCorrect ? '✅' : '❌'} Q${i+1}. ${item.question || ''}</div>
+          <div class="mcq-review-answer">
+            你的答案：<strong style="color:${item.isCorrect ? 'var(--green)' : 'var(--red)'};">${item.userAnswer || '未作答'}</strong>
+            ${!item.isCorrect ? ` → 正确答案：<strong style="color:var(--green);">${item.correctAnswer || ''}</strong>` : ''}
+          </div>
+          <div class="mcq-review-explain">💡 ${item.explanation || ''}</div>
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('mcq-review').innerHTML = reviewHTML;
+  } else {
+    document.getElementById('mcq-review').innerHTML = '';
+  }
+
+  // ── Master Comparison ──
+  const masters = r.master_comparisons || [];
+  if (masters.length > 0) {
+    const bgColors = ['#f4faf6', '#fefaf3', '#fef5f5', '#f8f6fd'];
+    const masterHTML = `
+      <h3>🎯 投资大师怎么看"${state.company}"这类企业</h3>
+      ${masters.map((m, i) => `
+        <div class="master-card" style="background:${bgColors[i % bgColors.length]};">
+          <div class="master-card-header">
+            <div class="master-avatar" style="background:${bgColors[i % bgColors.length]};">${m.avatar || '🎯'}</div>
+            <div>
+              <div class="master-name">${m.master || ''}</div>
+              <div class="master-company">${m.company || ''}</div>
+            </div>
+          </div>
+          <div class="master-insight">${m.story || ''}</div>
+          <div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);">
+            <strong>能力圈：</strong>${m.competence_insight || ''}
+          </div>
+          <div class="master-lesson">
+            <strong>🧠 学到的：</strong>${m.lesson || ''}
+          </div>
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('master-compare').innerHTML = masterHTML;
+  } else {
+    document.getElementById('master-compare').innerHTML = '';
+  }
+
+  // ── Learning path ──
+  const lp = r.learning_path || [];
+  const pathHTML = `
+    <h3>📖 你的学习路径</h3>
+    ${lp.map((step, i) => `
+      <div class="learning-step">
+        <div class="step-num">${i + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${step.title || ''}</div>
+          <div class="step-detail">${step.detail || ''}</div>
+          ${step.resource ? `<div style="margin-top:4px;"><span class="step-resource">📚 ${step.resource}</span></div>` : ''}
+          ${step.link_hint ? `<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ${step.link_hint}</div>` : ''}
+        </div>
+      </div>
+    `).join('')}
+    ${r.critical_question ? `
+    <div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;">
+      <strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>${r.critical_question}
+      <div class="critical-answer-section">
+        <textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题。看看你是真懂还是……" style="width:100%;padding:12px;border:1px solid var(--hairline);border-radius:8px;font-size:14px;font-family:var(--font);margin-top:10px;resize:vertical;"></textarea>
+        <button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button>
+        <div id="critical-feedback" style="display:none;"></div>
+      </div>
+    </div>` : ''}
+  `;
+  document.getElementById('learning-path').innerHTML = pathHTML;
+}
+
+function renderQuickDimensionBars(r) {
+  const ds = r._dimScores || {};
+  const dt = r._dimTotals || {};
+  const dims = Object.keys(ds);
+  return dims.map(d => {
+    const correct = ds[d] || 0;
+    const total = dt[d] || 1;
+    const pct = Math.round((correct / total) * 100);
+    let color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    return `
+      <div class="dim-row">
+        <div class="dim-name">${d}</div>
+        <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+        <div class="dim-score" style="color:${color};">${correct}/${total}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderDeepDimensionBars(r) {
+  const scores = r.scores || {};
+  const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+  return dims.map(d => {
+    const s = scores[d] || 0;
+    let color = s >= 8 ? 'var(--green)' : s >= 6 ? 'var(--amber)' : s >= 4 ? 'var(--coral)' : 'var(--red)';
+    return `
+      <div class="dim-row">
+        <div class="dim-name">${d}</div>
+        <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${s*10}%;background:${color};"></div></div>
+        <div class="dim-score" style="color:${color};">${s}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderQuickRadar(r) {
+  const ctx = document.getElementById('radar-chart').getContext('2d');
+  if (window._radarChart) window._radarChart.destroy();
+
+  const ds = r._dimScores || {};
+  const dt = r._dimTotals || {};
+  const labels = Object.keys(ds);
+  const userData = labels.map(d => {
+    const correct = ds[d] || 0;
+    const total = dt[d] || 1;
+    return Math.round((correct / total) * 10);
+  });
+
+  window._radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
+        { label: '普通投资者', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '巴菲特级', data: labels.map(() => 10), borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'var(--font)', size: 10 }, usePointStyle: true, padding: 14 } } },
+      scales: { r: { beginAtZero: true, max: 10, min: 0, ticks: { stepSize: 2, display: false }, pointLabels: { font: { family: 'var(--font)', size: 10, weight: '500' } }, grid: { color: '#e6dfd8' }, angleLines: { color: '#e6dfd8' } } }
+    }
+  });
+}
+
+function renderDeepRadar(scores) {
+  const ctx = document.getElementById('radar-chart').getContext('2d');
+  if (window._radarChart) window._radarChart.destroy();
+
+  const labels = ['商业模式','竞争优势','财务/经营','管理层','行业/风险','自我诚实'];
+  const userData = [
+    scores['商业模式理解']||0, scores['竞争优势判断']||0, scores['财务/经营理解']||0,
+    scores['管理层判断']||0, scores['行业/风险认知']||0, scores['自我认知诚实度']||0
+  ];
+
+  window._radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
+        { label: '普通投资者', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '巴菲特级', data: [10,10,10,10,10,10], borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'var(--font)', size: 10 }, usePointStyle: true, padding: 14 } } },
+      scales: { r: { beginAtZero: true, max: 10, min: 0, ticks: { stepSize: 2, display: false }, pointLabels: { font: { family: 'var(--font)', size: 10, weight: '500' } }, grid: { color: '#e6dfd8' }, angleLines: { color: '#e6dfd8' } } }
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// TIP CAROUSEL
+// ═══════════════════════════════════════
+const LOADING_TIPS_Q = [
+  '价值投资的"能力圈"概念最早由巴菲特在1996年股东信中正式提出，但他在此之前已经实践了30年。',
+  '段永平说：投资最重要的是"不懂不投"。这四个字，他用了二十年才真正内化。',
+  '芒格说过："我们不是靠解决难题成功的，是靠避开难题成功的。"',
+  '巴菲特在1999年互联网泡沫中跑输标普20个点，被《时代》周刊嘲笑——两年后泡沫破灭，他成了唯一站着的人。',
+  '李录说：真正的能力圈不是你知道什么，是你知道自己不知道什么。',
+  '巴菲特的办公室里没有股票行情终端。他是认真的。',
+  '段永平投资网易赚了100多倍，但他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
+];
+const LOADING_TIPS_R = [
+  '段永平说他投资成功的秘诀就四个字：不懂不投。这四个字他用了二十年。',
+  '巴菲特有一条铁律：绝对不要用杠杆。哪怕99次都对，第100次错就归零。',
+  '芒格把投资比作打孔卡——你只有20个孔，一辈子只能投20次。每一次都必须是确定的机会。',
+  '李录在哥伦比亚大学的演讲中说："价值投资不是一种策略，是一种世界观。"',
+  '巴菲特说股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以选择不理他。',
+  '段永平：安全边际不是抄底，是你知道这个东西值一块钱，用五毛钱买。不知道值不值，一毛钱也是贵的。',
+  '芒格花了大半辈子才明白：最大的投资错误不是买错了，是明明知道自己不懂，却假装懂。',
+];
+
+let _carouselState = {};
+
+function initCarousel(type) {
+  const tips = type === 'q' ? LOADING_TIPS_Q : LOADING_TIPS_R;
+  const track = document.getElementById('tip-track-' + type);
+  const dots = document.getElementById('tip-dots-' + type);
+  if (!track || !dots) return;
+  track.innerHTML = tips.map((t, i) => '<div class="tip-card-item"><div class="tip-card-label">' + (i+1) + ' / ' + tips.length + '</div>' + t + '</div>').join('');
+  dots.innerHTML = tips.map((_, i) => '<span class="tip-dot' + (i===0?' active':'') + '" onclick="tipGoTo(\'' + type + '\',' + i + ')"></span>').join('');
+  _carouselState[type] = { current: 0, total: tips.length, timer: null };
+  _startCarouselTimer(type);
+}
+
+function _startCarouselTimer(type) { _stopCarouselTimer(type); _carouselState[type].timer = setInterval(() => tipNext(type), 5000); }
+function _stopCarouselTimer(type) { const s = _carouselState[type]; if (s && s.timer) { clearInterval(s.timer); s.timer = null; } }
+
+function tipGoTo(type, idx) {
+  const s = _carouselState[type]; if (!s) return;
+  s.current = idx;
+  const track = document.getElementById('tip-track-' + type);
+  if (track) track.style.transform = 'translateX(-' + (idx * 100) + '%)';
+  const dots = document.getElementById('tip-dots-' + type);
+  if (dots) dots.querySelectorAll('.tip-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  _stopCarouselTimer(type); _startCarouselTimer(type);
+}
+
+function tipNext(type) { const s = _carouselState[type]; if (s) tipGoTo(type, (s.current + 1) % s.total); }
+function tipPrev(type) { const s = _carouselState[type]; if (s) tipGoTo(type, (s.current - 1 + s.total) % s.total); }
+
+function startProgressAnimation(barId) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  bar.style.width = '0%';
+  let w = 0;
+  bar._progressInterval = setInterval(() => {
+    if (w >= 90) { clearInterval(bar._progressInterval); return; }
+    w += Math.random() * 15 + 3;
+    if (w > 90) w = 90;
+    bar.style.width = w + '%';
+  }, 600);
+}
+
+function finishProgressAnimation(barId) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  if (bar._progressInterval) clearInterval(bar._progressInterval);
+  bar.style.width = '100%';
+  setTimeout(() => { if (bar) bar.style.width = '0%'; }, 500);
+}
+
+// Override showScreen
+const _origShowScreen = showScreen;
+showScreen = function(id) {
+  ['q','r'].forEach(t => _stopCarouselTimer(t));
+  finishProgressAnimation('loading-progress-bar');
+  finishProgressAnimation('loading-q-progress');
+  if (id === 'screen-loading-questions') { initCarousel('q'); startProgressAnimation('loading-q-progress'); }
+  if (id === 'screen-loading-results') { initCarousel('r'); startProgressAnimation('loading-progress-bar'); }
+  _origShowScreen(id);
+};
+
+// Touch swipe for carousels
+document.addEventListener('DOMContentLoaded', () => {
+  ['q','r'].forEach(type => {
+    const wrapper = document.querySelector('#tip-track-' + type)?.parentElement;
+    if (!wrapper) return;
+    let startX = 0;
+    wrapper.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, {passive: true});
+    wrapper.addEventListener('touchend', e => {
+      const diff = startX - e.changedTouches[0].clientX;
+      if (Math.abs(diff) > 40) { diff > 0 ? tipNext(type) : tipPrev(type); }
+    });
+  });
+});
+
+// Critical answer submission
+async function submitCriticalAnswer() {
+  const answer = document.getElementById('critical-answer').value.trim();
+  if (!answer) { document.getElementById('critical-answer').focus(); return; }
+  const btn = document.getElementById('btn-critical-submit');
+  const fb = document.getElementById('critical-feedback');
+  btn.disabled = true; btn.textContent = 'AI 正在分析……';
+  fb.style.display = 'block'; fb.innerHTML = '<div style="text-align:center;color:var(--muted);">分析中……</div>';
+  try {
+    const sp = '你是一个价值投资评估专家。用户回答了一个终极检验问题。请简短评价（100字以内）：用户的回答暴露了什么知识盲区？他的理解深度如何？给一个1-10的打分。用鼓励但诚实的语气。';
+    const up = '终极问题：' + (state.results?.critical_question || '') + '\n\n用户回答：' + answer + '\n\n请评价。';
+    const content = await callDeepSeek([{role:'system',content:sp},{role:'user',content:up}], 0.5, 800);
+    fb.innerHTML = '<div class="critical-feedback"><strong>AI 反馈</strong><br>' + content.replace(/\n/g,'<br>') + '</div>';
+  } catch(err) {
+    fb.innerHTML = '<div style="color:var(--red);font-size:13px;">出错了：' + err.message + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '提交回答，获取 AI 反馈 →';
+  }
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+showScreen('screen-input');
+</script>
+
+</body>
+</html>
