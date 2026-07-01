@@ -681,6 +681,9 @@ async function startDiagnosis() {
     renderProgress();
     renderQuestion();
     showScreen('screen-questions');
+    console.log('screen-questions visible:', document.getElementById('screen-questions').style.display);
+    console.log('question-container innerHTML length:', document.getElementById('question-container').innerHTML.length);
+    console.log('First MCQ:', state.mcqs[0]?.question);
 
     // Batch 2: fire in background while user answers batch 1
     generateBatch(2, 7,
