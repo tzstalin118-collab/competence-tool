@@ -663,96 +663,108 @@ async function startDiagnosis() {
   state.openEnded = [];
   state.currentQ = 0;
   state.results = null;
+  state.totalMCQ = 0;
+  state._batch2Ready = false;
 
   document.getElementById('btn-start').disabled = true;
   document.getElementById('loading-company-label').textContent = `公司：${company}  ·  ${state.mode === 'quick' ? '快速模式' : '深度模式'}`;
   showScreen('screen-loading-questions');
 
   try {
-    const systemPrompt = `你是投资诊断出题专家。基于能力圈框架（懂=能回答"这家公司为什么赚钱、能持续多久"），为"${company}"出诊断题。
-
-## 出题要求
-15道单选题 + 3道简答题。六维度分配：商业模式3题、竞争优势3题、财务经营3题、管理层2题、行业风险2题、自我诚实2题。
-每题4选项单选，考理解不考数据记忆，错误选项要有迷惑性。同维度题目层层递进（基础→深层→极限场景）。
-3道简答题分别追问：商业+护城河综合、可能蒙对的地方、极端场景验证。
-
-## 严格JSON格式
-{
-  "mcqs": [
-    {"id":1,"dimension":"商业模式理解","question":"...","options":["A. ..","B. ..","C. ..","D. .."],"correct":"A"},
-    ...共15题
-  ],
-  "open_ended": [
-    {"id":16,"dimension":"综合追问","question":"..."},
-    ...共3题
-    },
-    ...共3题
-  ]
-}
-\`\`\``;
-
-    const userPrompt = state.claim
-      ? `公司：${company}\n用户自述：${state.claim}\n请生成诊断题目。`
-      : `公司：${company}\n请生成诊断题目。`;
-
-    const content = await callDeepSeek([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ], 0.8, 4000);
-
-    // DEBUG: log first 300 chars of response
-    console.log('API response (first 300 chars):', (content || 'EMPTY').substring(0, 300));
-    console.log('API response length:', (content || '').length);
-
-    if (!content || content.trim().length === 0) {
-      throw new Error('API 返回了空内容，请重试。可能 DeepSeek 服务暂时繁忙。');
-    }
-
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.log('Raw response:', content);
-      throw new Error('AI 返回格式异常，未找到 JSON。原始返回：' + (content || '空').substring(0, 200));
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch (jsonErr) {
-      console.log('JSON parse failed, attempting repair...');
-      // Try to fix truncated JSON
-      let raw = jsonMatch[0];
-      // Remove trailing incomplete content after last complete element
-      const lastBracket = raw.lastIndexOf('}');
-      const lastArray = raw.lastIndexOf(']');
-      if (lastBracket > 0 || lastArray > 0) {
-        const cutPoint = Math.max(lastBracket, lastArray);
-        raw = raw.substring(0, cutPoint + 1) + '\n]}';
-      }
-      try {
-        parsed = JSON.parse(raw);
-        console.log('JSON repaired successfully');
-      } catch (repairErr) {
-        console.log('Repair failed:', repairErr.message);
-        throw new Error('AI 返回的 JSON 格式错误：' + jsonErr.message + '\n尝试修复也失败了，请重试。');
-      }
-    }
-
-    if (!parsed.mcqs || parsed.mcqs.length < 10) throw new Error('AI 生成的选择题数量不足（只有' + (parsed.mcqs || []).length + '道），请重试');
-    if (!parsed.open_ended || parsed.open_ended.length < 2) throw new Error('AI 生成的简答题数量不足，请重试');
-    if (!parsed.open_ended || parsed.open_ended.length < 3) throw new Error('AI 生成的简答题数量不足');
-
-    state.mcqs = parsed.mcqs.slice(0, 15).map(q => ({ ...q, userAnswer: null }));
-    state.openEnded = parsed.open_ended.slice(0, 3).map(q => ({ ...q, answer: '' }));
-    state.totalMCQ = state.mcqs.length;
+    // Batch 1: first 8 MCQs — generate and show immediately
+    const batch1Result = await generateBatch(1, 8,
+      '商业模式理解(3题)、竞争优势判断(3题)、财务/经营理解(2题)', false);
+    state.mcqs = batch1Result.mcqs;
+    state.totalMCQ = batch1Result.mcqs.length;
     state.currentQ = 0;
 
     renderProgress();
     renderQuestion();
     showScreen('screen-questions');
+
+    // Batch 2: fire in background while user answers batch 1
+    generateBatch(2, 7,
+      '财务/经营理解(1题)、管理层判断(2题)、行业/风险认知(2题)、自我认知诚实度(2题)', true
+    ).then(batch2Result => {
+      if (batch2Result) {
+        state.mcqs = [...state.mcqs, ...batch2Result.mcqs];
+        state.openEnded = batch2Result.open_ended || [];
+        state.totalMCQ = state.mcqs.length;
+        state._batch2Ready = true;
+        renderProgress();
+      }
+    }).catch(err => {
+      console.error('后台生成剩余题目失败:', err);
+      state._batch2Ready = true; // proceed with what we have
+    });
+
   } catch (err) {
     console.error(err);
     showError('生成题目失败', err.message);
   }
+}
+
+// Generate a batch of questions
+async function generateBatch(batchNum, count, dimensions, withOpenEnded) {
+  const oePart = withOpenEnded ? '\n同时生成3道追问型简答题（id从' + (count + 1) + '开始），放在"open_ended"数组中，每道题包含id、dimension、question字段。' : '';
+
+  const systemPrompt = `你是一个价值投资诊断专家。你的框架基于巴菲特、芒格、段永平的能力圈理论。
+
+${KNOWLEDGE_BASE}
+
+## 任务
+为"${state.company}"生成第${batchNum}批诊断题目。
+
+## 本批维度
+${dimensions}
+共${count}道单选题${withOpenEnded ? ' + 3道追问型简答题' : ''}
+
+## 出题原则
+- 题目必须针对"${state.company}"，不能是通用题
+- 每题4选项单选，只有一个正确答案，错误选项要有迷惑性
+- 考"理解"而非"数据记忆"
+- 同维度题目层层递进：基础→深层→极限
+
+## 严格JSON（仅JSON，无markdown包裹）
+{"mcqs":[{"id":${batchNum === 1 ? 1 : 9},"dimension":"...","question":"...","options":["A. ..","B. ..","C. ..","D. .."],"correct":"A"},...]${withOpenEnded ? ',"open_ended":[{"id":' + (count + 1) + ',"dimension":"综合追问","question":"..."},...]' : ''}}`;
+
+  const userPrompt = state.claim
+    ? `公司：${state.company}\n用户自述：${state.claim}\n请生成第${batchNum}批题目（${dimensions}）。`
+    : `公司：${state.company}\n请生成第${batchNum}批题目（${dimensions}）。`;
+
+  const content = await callDeepSeek([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ], 0.8, 3000);
+
+  console.log('Batch ' + batchNum + ' response length:', (content || '').length);
+
+  if (!content || content.trim().length === 0) {
+    throw new Error('API 返回空内容，请重试');
+  }
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('AI 返回格式异常');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch (jsonErr) {
+    let raw = jsonMatch[0];
+    const lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
+    if (lastComplete > 0) raw = raw.substring(0, lastComplete + 1) + '\\n]}';
+    try { parsed = JSON.parse(raw); } catch (e) {
+      throw new Error('JSON 解析失败：' + jsonErr.message);
+    }
+  }
+
+  if (!parsed.mcqs || parsed.mcqs.length === 0) throw new Error('未生成有效题目');
+
+  const mcqs = parsed.mcqs.map(q => ({ ...q, userAnswer: null }));
+  const openEnded = (parsed.open_ended || []).map(q => ({ ...q, answer: '' }));
+
+  console.log('Batch ' + batchNum + ' done:', mcqs.length, 'MCQs,', openEnded.length, 'open-ended');
+  return { mcqs, open_ended: openEnded };
 }
 
 // ═══════════════════════════════════════
@@ -893,7 +905,6 @@ function nextQuestion() {
   const q = getCurrentQuestion();
 
   if (q.type === 'mcq' && !q.data.userAnswer) {
-    // Shake or highlight - skip for now, just let them continue
     if (!confirm('这道题还没选。确定跳过吗？')) return;
   }
 
@@ -901,14 +912,49 @@ function nextQuestion() {
     saveOpenAnswer();
   }
 
-  if (state.currentQ < totalQuestions() - 1) {
+  const total = totalQuestions();
+
+  if (state.currentQ < total - 1) {
     state.currentQ++;
     renderProgress();
     renderQuestion();
-  } else {
-    if (q.type === 'open') saveOpenAnswer();
-    submitDiagnosis();
+    return;
   }
+
+  // At the last question — check if background generation is still pending
+  if (state._batch2Ready === false) {
+    if (q.type === 'open') saveOpenAnswer();
+    showScreen('screen-loading-questions');
+    document.getElementById('loading-q-title').textContent = 'AI 正在生成剩余题目……';
+    document.getElementById('loading-company-label').textContent = '请稍候，马上就好';
+
+    // Poll until batch 2 is ready
+    const checkInterval = setInterval(() => {
+      if (state._batch2Ready === true) {
+        clearInterval(checkInterval);
+        state.currentQ++;
+        renderProgress();
+        renderQuestion();
+        showScreen('screen-questions');
+      }
+    }, 300);
+
+    // Timeout after 15 seconds
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      if (state._batch2Ready === false) {
+        state._batch2Ready = true; // give up, proceed with what we have
+        showScreen('screen-questions');
+        submitDiagnosis();
+      }
+    }, 15000);
+
+    return;
+  }
+
+  // All questions answered → submit
+  if (q.type === 'open') saveOpenAnswer();
+  submitDiagnosis();
 }
 
 function saveOpenAnswer() {
