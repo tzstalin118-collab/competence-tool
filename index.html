@@ -692,10 +692,12 @@ async function startDiagnosis() {
         state.totalMCQ = state.mcqs.length;
         state._batch2Ready = true;
         renderProgress();
+        renderQuestion(); // refresh button text
       }
     }).catch(err => {
       console.error('后台生成剩余题目失败:', err);
       state._batch2Ready = true; // proceed with what we have
+      renderQuestion();
     });
 
   } catch (err) {
@@ -817,9 +819,16 @@ function renderQuestion() {
   }
 
   if (state.currentQ === total - 1) {
-    btnNext.textContent = '提交诊断 →';
+    if (state._batch2Ready === false) {
+      btnNext.textContent = '⏳ 更多题目加载中...';
+      btnNext.disabled = true;
+    } else {
+      btnNext.textContent = '提交诊断 →';
+      btnNext.disabled = false;
+    }
   } else {
     btnNext.textContent = '下一题 →';
+    btnNext.disabled = false;
   }
 
   if (q.type === 'mcq') {
@@ -974,178 +983,144 @@ async function submitDiagnosis() {
   showScreen('screen-loading-results');
 
   try {
-    // Calculate MCQ scores
     const mcqCorrect = state.mcqs.filter(q => q.userAnswer === q.correct).length;
     const mcqTotal = state.mcqs.length;
     const mcqScore = Math.round((mcqCorrect / mcqTotal) * 10);
 
-    // Per-dimension MCQ scores
-    const dimScores = {};
-    const dimTotals = {};
+    const dimScores = {}, dimTotals = {};
     state.mcqs.forEach(q => {
       if (!dimScores[q.dimension]) { dimScores[q.dimension] = 0; dimTotals[q.dimension] = 0; }
       if (q.userAnswer === q.correct) dimScores[q.dimension]++;
       dimTotals[q.dimension]++;
     });
 
-    // Build MCQ analysis text
     const mcqAnalysis = Object.keys(dimScores).map(d => {
-      const correct = dimScores[d];
-      const total = dimTotals[d];
-      const pct = Math.round((correct / total) * 100);
-      return `${d}：${correct}/${total} 正确（${pct}%）`;
+      const correct = dimScores[d], total = dimTotals[d];
+      return d + '：' + correct + '/' + total + ' 正确（' + Math.round((correct/total)*100) + '%）';
     }).join('\n');
 
     const mcqDetail = state.mcqs.map((q, i) => {
       const icon = q.userAnswer === q.correct ? '✅' : (q.userAnswer ? '❌' : '⬜');
-      return `${icon} Q${i+1} [${q.dimension}] ${q.question}\n   你的答案：${q.userAnswer || '未作答'} | 正确答案：${q.correct}`;
+      return icon + ' Q' + (i+1) + ' [' + q.dimension + '] ' + q.question + '\n   你的答案：' + (q.userAnswer||'未作答') + ' | 正确答案：' + q.correct;
     }).join('\n');
 
     const hasOpenEnded = state.mode === 'deep' && state.openEnded.some(o => o.answer.trim());
     const oeText = state.openEnded.map((o, i) =>
-      `【简答${i+1} · ${o.dimension}】\n问：${o.question}\n答：${o.answer || '（未作答）'}`
+      '【简答' + (i+1) + ' · ' + o.dimension + '】\n问：' + o.question + '\n答：' + (o.answer || '（未作答）')
     ).join('\n\n');
 
-    const systemPrompt = `你是一个价值投资能力圈评估专家。你的框架基于巴菲特、芒格、段永平的投资哲学。
+    const modeInfo = state.mode === 'quick' ? '快速诊断（仅选择题）' : '深度诊断（选择题 + 简答题）';
+    const correctRate = Math.round(mcqCorrect/mcqTotal*100);
+
+    // Phase 1: Core — fast
+    const corePrompt = `你是价值投资能力圈评估专家。基于巴菲特、芒格、段永平的框架。
 
 ${KNOWLEDGE_BASE}
 
-## 你的任务
-根据用户的诊断数据，评估用户对"${state.company}"是否具备能力圈。
+## 评估"${state.company}"，模式：${modeInfo}，正确率：${mcqCorrect}/${mcqTotal}（${correctRate}%）
 
-## 诊断数据
-- 诊断模式：${state.mode === 'quick' ? '快速诊断（仅选择题）' : '深度诊断（选择题 + 简答题）'}
-- 选择题正确率：${mcqCorrect}/${mcqTotal}（${Math.round(mcqCorrect/mcqTotal*100)}%）
+## 只输出以下字段，不要逐题解析、不要大师对标、不要学习路径：
+${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5,"自我认知诚实度":7},"overall_level":"基本理解","overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
+严格JSON，无markdown包裹。`;
 
-## 评分要求
-${state.mode === 'quick' ? `
-因为是快速诊断（仅选择题），评分以等级制为主，不要给精确的 1-10 分。用以下等级：
-- A级（具备能力圈）：正确率 ≥ 80%
-- B级（基本理解）：正确率 60-79%
-- C级（初步了解）：正确率 40-59%
-- D级（尚未入门）：正确率 < 40%
-` : `
-因为是深度诊断（含简答题），请给出精确的六维 1-10 分评分。
-- 8-10分：理解深刻
-- 5-7分：有一定理解
-- 1-4分：理解肤浅
-`}
+    const userPrompt = '公司：' + state.company + '\n模式：' + state.mode + '\n\n选择题结果\n' + mcqAnalysis + '\n\n逐题详情\n' + mcqDetail + '\n\n' + (hasOpenEnded ? '简答题\n' + oeText : '简答题：未作答');
 
-## 逐题解析要求（重要）
-为每一道选择题生成解析。每道题包含：
-- question：题目原文
-- userAnswer：用户选了什么
-- correctAnswer：正确答案
-- isCorrect：对还是错
-- explanation：为什么正确答案是对的、用户错在哪里（如果答对了也要解释为什么对）。要让用户心服口服，知道自己的知识盲区在哪。
-
-## 大师对标要求（重要）
-找到巴菲特、芒格、段永平、李录这四位投资大师中，至少2位在"${state.company}"或其所在行业的投资经历和能力圈判断。对于每位大师：
-- master：大师名字
-- avatar：推荐一个 emoji（💰🧠🎯🏔️ 等）
-- company：大师投资的具体公司或行业
-- story：大师在这个行业/公司的投资经历（2-3句话，具体、有故事感）
-- competence_insight：大师在这个行业是怎么建立/运用能力圈的（他们懂什么、不懂什么、为什么投/为什么不投）
-- lesson：用户可以从大师身上学到什么（1-2句话，直接可执行的教训）
-
-如果大师和"${state.company}"没有直接交集，就找同行业的。如果同行业也没有，就找投资逻辑最接近的。
-
-## 学习路径要求（重要）
-学习路径必须具体、可执行。每条路径必须包含：
-- 具体要做什么
-- 具体资料名称和作者（如《聪明的投资者》格雷厄姆）
-- 如果涉及巴菲特致股东信，指明具体年份
-- 搜索关键词或链接提示
-
-## 附加题要求
-生成一个脑洞大开的附加题——如果只问一个问题来终极检验用户是否真懂"${state.company}"，你会问什么？这个问题应该是用户大概率答不上来、但真正懂的人能答出来的。
-
-## 输出格式
-${state.mode === 'quick' ? `
-\`\`\`json
-{
-  "level": "A级（具备能力圈）",
-  "level_desc": "等级说明一句话",
-  "overall_assessment": "一段150字以内的总体评价",
-  "key_insight": "最犀利的洞察",
-  "dimension_summary": {"商业模式理解": "一句话总结", ...},
-  "mcq_review": [
-    {"question": "原题", "userAnswer": "A", "correctAnswer": "B", "isCorrect": false, "explanation": "解释"},
-    ...
-  ],
-  "master_comparisons": [
-    {"master": "巴菲特", "avatar": "💰", "company": "可口可乐", "story": "...", "competence_insight": "...", "lesson": "..."},
-    ...
-  ],
-  "learning_path": [
-    {"title": "具体行动", "detail": "详细说明", "resource": "资料名称·作者", "link_hint": "搜索关键词或链接提示"},
-    ...
-  ],
-  "critical_question": "脑洞大开的终极检验问题"
-}
-\`\`\`
-` : `
-\`\`\`json
-{
-  "scores": {"商业模式理解": 7, "竞争优势判断": 5, "财务/经营理解": 4, "管理层判断": 6, "行业/风险认知": 5, "自我认知诚实度": 7},
-  "overall_level": "基本理解",
-  "overall_assessment": "一段200字以内的总体评价",
-  "key_insight": "最犀利的洞察",
-  "dimension_analysis": {"商业模式理解": {"strength": "...", "weakness": "..."}, ...},
-  "mcq_review": [
-    {"question": "原题", "userAnswer": "A", "correctAnswer": "B", "isCorrect": false, "explanation": "解释"},
-    ...
-  ],
-  "master_comparisons": [
-    {"master": "巴菲特", "avatar": "💰", "company": "可口可乐", "story": "...", "competence_insight": "...", "lesson": "..."},
-    ...
-  ],
-  "learning_path": [
-    {"title": "具体行动", "detail": "详细说明", "resource": "资料名称·作者", "link_hint": "搜索关键词或链接提示"},
-    ...
-  ],
-  "critical_question": "脑洞大开的终极检验问题"
-}
-\`\`\`
-`}
-请严格按照JSON格式输出。`;
-
-    const userPrompt = `公司：${state.company}
-诊断模式：${state.mode === 'quick' ? '快速' : '深度'}
-
-## 选择题结果
-${mcqAnalysis}
-
-## 逐题详情（请用这些数据生成 mcq_review 逐题解析）
-${mcqDetail}
-
-${hasOpenEnded ? '## 简答题回答\n' + oeText : '## 简答题\n用户选择了快速模式，未作答简答题。'}
-
-请评估。注意：
-1. 每道选择题都要有 explanation（解释为什么对/错）
-2. master_comparisons 至少找2位投资大师，不要虚构——用他们真实的、公开的投资案例或言论
-3. critical_question 要脑洞大开、出乎意料`;
-
-    const content = await callDeepSeek([
-      { role: 'system', content: systemPrompt },
+    const coreContent = await callDeepSeek([
+      { role: 'system', content: corePrompt },
       { role: 'user', content: userPrompt }
-    ], 0.4, 4000);
+    ], 0.4, 1500);
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI 评估结果格式异常');
+    const coreJson = coreContent.match(/\{[\s\S]*\}/);
+    if (!coreJson) throw new Error('核心评估返回格式异常');
+    const coreResult = JSON.parse(coreJson[0]);
 
-    state.results = JSON.parse(jsonMatch[0]);
+    state.results = coreResult;
     state.results.mcqScore = mcqScore;
     state.results.mcqCorrect = mcqCorrect;
     state.results.mcqTotal = mcqTotal;
     state.results._dimScores = dimScores;
     state.results._dimTotals = dimTotals;
+    state.results._detailReady = false;
 
     renderResults();
     showScreen('screen-results');
+
+    // Phase 2: Detail — background
+    const detailPrompt = `你是价值投资能力圈评估专家。
+
+${KNOWLEDGE_BASE}
+
+## 基于以下数据生成三部分：
+## 1. mcq_review：每题写explanation，解释为什么对/错
+## 2. master_comparisons：巴菲特、芒格、段永平、李录中至少2位在"${state.company}"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2-3句), competence_insight, lesson
+## 3. learning_path：3-5条学习建议，字段：title, detail, resource, link_hint
+## 严格JSON：{"mcq_review":[...],"master_comparisons":[...],"learning_path":[...]}`;
+
+    const detailUserPrompt = '公司：' + state.company + '\n\n逐题详情：\n' + mcqDetail;
+
+    callDeepSeek([
+      { role: 'system', content: detailPrompt },
+      { role: 'user', content: detailUserPrompt }
+    ], 0.5, 2500).then(detailContent => {
+      const dj = detailContent.match(/\{[\s\S]*\}/);
+      if (dj) {
+        try {
+          const dr = JSON.parse(dj[0]);
+          state.results.mcq_review = dr.mcq_review || [];
+          state.results.master_comparisons = dr.master_comparisons || [];
+          state.results.learning_path = dr.learning_path || [];
+          state.results._detailReady = true;
+          appendDetailResults();
+        } catch(e) { console.error('Detail parse error:', e); }
+      }
+    }).catch(err => { console.error('Detail failed:', err); });
+
   } catch (err) {
     console.error(err);
     showError('评估失败', err.message);
+  }
+}
+
+function appendDetailResults() {
+  const r = state.results;
+  const review = r.mcq_review || [];
+  if (review.length > 0) {
+    document.getElementById('mcq-review').innerHTML = '<h3>📋 逐题解析</h3>' + review.map((item, i) =>
+      '<div class="mcq-review-item ' + (item.isCorrect ? 'correct' : 'wrong') + '">' +
+      '<div class="mcq-review-q">' + (item.isCorrect ? '✅' : '❌') + ' Q' + (i+1) + '. ' + (item.question||'') + '</div>' +
+      '<div class="mcq-review-answer">你的答案：<strong style="color:' + (item.isCorrect ? 'var(--green)' : 'var(--red)') + ';">' + (item.userAnswer||'未作答') + '</strong>' +
+      (item.isCorrect ? '' : ' → 正确答案：<strong style="color:var(--green);">' + (item.correctAnswer||'') + '</strong>') + '</div>' +
+      '<div class="mcq-review-explain">💡 ' + (item.explanation||'') + '</div></div>'
+    ).join('');
+  }
+
+  const masters = r.master_comparisons || [];
+  if (masters.length > 0) {
+    var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
+    document.getElementById('master-compare').innerHTML = '<h3>🎯 投资大师怎么看</h3>' + masters.map(function(m, i) {
+      return '<div class="master-card" style="background:' + bg[i%4] + ';">' +
+      '<div class="master-card-header"><div class="master-avatar">' + (m.avatar||'🎯') + '</div>' +
+      '<div><div class="master-name">' + (m.master||'') + '</div><div class="master-company">' + (m.company||'') + '</div></div></div>' +
+      '<div class="master-insight">' + (m.story||'') + '</div>' +
+      '<div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);"><strong>能力圈：</strong>' + (m.competence_insight||'') + '</div>' +
+      '<div class="master-lesson"><strong>🧠 学到的：</strong>' + (m.lesson||'') + '</div></div>';
+    }).join('');
+  }
+
+  var lp = r.learning_path || [];
+  if (lp.length > 0) {
+    var ph = '<h3>📖 你的学习路径</h3>' + lp.map(function(step, i) {
+      return '<div class="learning-step"><div class="step-num">' + (i+1) + '</div>' +
+      '<div class="step-content"><div class="step-title">' + (step.title||'') + '</div>' +
+      '<div class="step-detail">' + (step.detail||'') + '</div>' +
+      (step.resource ? '<div style="margin-top:4px;"><span class="step-resource">📚 ' + step.resource + '</span></div>' : '') +
+      (step.link_hint ? '<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ' + step.link_hint + '</div>' : '') +
+      '</div></div>';
+    }).join('');
+    if (r.critical_question) {
+      ph += '<div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '<div class="critical-answer-section"><textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题……"></textarea><button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button><div id="critical-feedback" style="display:none;"></div></div></div>';
+    }
+    document.getElementById('learning-path').innerHTML = ph;
   }
 }
 
