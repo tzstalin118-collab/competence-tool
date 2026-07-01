@@ -603,6 +603,7 @@ function showScreen(id) {
 }
 
 function showError(title, detail) {
+  console.log('showError called:', title, detail);
   document.getElementById('error-title').textContent = title;
   document.getElementById('error-detail').textContent = detail;
   showScreen('screen-error');
@@ -738,8 +739,19 @@ ${KNOWLEDGE_BASE}
       { role: 'user', content: userPrompt }
     ], 0.8, 4000);
 
+    // DEBUG: log first 300 chars of response
+    console.log('API response (first 300 chars):', (content || 'EMPTY').substring(0, 300));
+    console.log('API response length:', (content || '').length);
+
+    if (!content || content.trim().length === 0) {
+      throw new Error('API 返回了空内容，请重试。可能 DeepSeek 服务暂时繁忙。');
+    }
+
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI 返回格式异常，请重试');
+    if (!jsonMatch) {
+      console.log('Raw response:', content);
+      throw new Error('AI 返回格式异常，未找到 JSON。原始返回：' + (content || '空').substring(0, 200));
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
 
