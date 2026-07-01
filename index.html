@@ -737,7 +737,7 @@ ${KNOWLEDGE_BASE}
     const content = await callDeepSeek([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
-    ], 0.8, 4000);
+    ], 0.8, 2500);
 
     // DEBUG: log first 300 chars of response
     console.log('API response (first 300 chars):', (content || 'EMPTY').substring(0, 300));
