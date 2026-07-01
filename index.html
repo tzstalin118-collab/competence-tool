@@ -1472,6 +1472,22 @@ async function submitCriticalAnswer() {
 }
 
 // ═══════════════════════════════════════
+// GLOBAL ERROR CATCH
+// ═══════════════════════════════════════
+window.onerror = function(msg, url, line) {
+  const errEl = document.getElementById('screen-error');
+  if (errEl) {
+    document.getElementById('error-title').textContent = '页面出错了';
+    document.getElementById('error-detail').textContent = msg + '\n行号：' + line;
+    ['screen-input','screen-loading-questions','screen-questions','screen-loading-results','screen-results','screen-error'].forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.style.display = (s === 'screen-error') ? '' : 'none';
+    });
+  }
+  return true;
+};
+
+// ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
 showScreen('screen-input');
