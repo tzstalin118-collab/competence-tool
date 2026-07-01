@@ -765,8 +765,7 @@ ${KNOWLEDGE_BASE}
       const lastArray = raw.lastIndexOf(']');
       if (lastBracket > 0 || lastArray > 0) {
         const cutPoint = Math.max(lastBracket, lastArray);
-        raw = raw.substring(0, cutPoint + 1) + '
-]}';
+        raw = raw.substring(0, cutPoint + 1) + '\n]}';
       }
       try {
         parsed = JSON.parse(raw);
