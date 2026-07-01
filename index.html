@@ -737,7 +737,7 @@ ${dimensions}
   const content = await callDeepSeek([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
-  ], 0.8, 3000);
+  ], 0.8, 2500);
 
   console.log('Batch ' + batchNum + ' response length:', (content || '').length);
 
@@ -1061,11 +1061,11 @@ ${KNOWLEDGE_BASE}
     callDeepSeek([
       { role: 'system', content: detailPrompt },
       { role: 'user', content: detailUserPrompt }
-    ], 0.5, 2500).then(detailContent => {
+    ], 0.5, 3500).then(detailContent => {
       const dj = detailContent.match(/\{[\s\S]*\}/);
       if (dj) {
         try {
-          const dr = JSON.parse(dj[0]);
+          let dr; try { dr = JSON.parse(dj[0]); } catch(pe) { var raw2 = dj[0]; var lc = Math.max(raw2.lastIndexOf("}"), raw2.lastIndexOf("]")); if (lc > 0) raw2 = raw2.substring(0, lc + 1) + "\n]}"; try { dr = JSON.parse(raw2); } catch(e2) { return; } }
           state.results.mcq_review = dr.mcq_review || [];
           state.results.master_comparisons = dr.master_comparisons || [];
           state.results.learning_path = dr.learning_path || [];
