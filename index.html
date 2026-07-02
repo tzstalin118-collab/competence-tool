@@ -403,10 +403,12 @@ body {
 .collapsible-loading {
   text-align: center; padding: 18px 12px; color: var(--soft); font-size: 13px;
 }
-@keyframes detailProgress {
-  0% { width: 0%; }
-  50% { width: 70%; }
-  100% { width: 100%; }
+.detail-progress-track {
+  width: 100%; height: 4px; background: var(--hairline); border-radius: 2px; overflow: hidden; margin-top: 8px;
+}
+.detail-progress-fill {
+  height: 100%; width: 0%; background: var(--coral); border-radius: 2px;
+  transition: width 0.6s ease;
 }
 </style>
 </head>
@@ -538,11 +540,7 @@ body {
       <div class="insight-box insight-key" id="insight-key"></div>
       <div class="insight-box insight-detail" id="insight-detail"></div>
 
-      <div class="master-compare" id="master-compare"></div>
-
-      <div class="mcq-review" id="mcq-review"></div>
-
-      <div class="learning-path" id="learning-path"></div>
+      <div id="detail-sections"></div>
 
       <div id="critical-question"></div>
 
@@ -641,6 +639,10 @@ function showError(title, detail) {
 }
 
 function resetApp() {
+  // Clear detail progress timers
+  if (state._detailTimers) {
+    Object.keys(state._detailTimers).forEach(function(k) { clearInterval(state._detailTimers[k]); });
+  }
   state = { company: '', claim: '', mode: 'quick', mcqs: [], openEnded: [], currentQ: 0, totalMCQ: 0, results: null };
   document.getElementById('company-name').value = '';
   document.getElementById('user-claim').value = '';
@@ -648,6 +650,9 @@ function resetApp() {
   selectMode('quick');
   showScreen('screen-input');
   document.getElementById('company-name').focus();
+  // Reset detail sections
+  var ds = document.getElementById('detail-sections');
+  if (ds) ds.innerHTML = '';
 }
 
 function selectMode(mode) {
@@ -1186,10 +1191,31 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
   }
 }
 
+function finishDetailSection(loaderId, html) {
+  // Stop timer & fill bar
+  var bar = document.getElementById(loaderId + '-bar');
+  if (bar) {
+    bar.style.transition = 'width 0.3s ease';
+    bar.style.width = '100%';
+  }
+  if (state._detailTimers && state._detailTimers[loaderId]) {
+    clearInterval(state._detailTimers[loaderId]);
+    delete state._detailTimers[loaderId];
+  }
+  // Replace loader with real content after brief delay (let bar hit 100% visually)
+  setTimeout(function() {
+    var loader = document.getElementById(loaderId);
+    if (loader) {
+      loader.insertAdjacentHTML('beforebegin', html);
+      loader.remove();
+    }
+  }, 350);
+}
+
 function appendDetailResults() {
   var r = state.results;
 
-  // 1. 投资大师怎么看（优先展示）
+  // 1. 投资大师怎么看
   var masters = r.master_comparisons || [];
   if (masters.length > 0) {
     var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
@@ -1201,7 +1227,8 @@ function appendDetailResults() {
       '<div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);"><strong>能力圈：</strong>' + (m.competence_insight||'') + '</div>' +
       '<div class="master-lesson"><strong>🧠 学到的：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
-    document.getElementById('master-compare').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + mhtml + '</div></div>';
+    finishDetailSection('loader-master',
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
   }
 
   // 2. 逐题解析
@@ -1214,7 +1241,8 @@ function appendDetailResults() {
         (item.isCorrect ? '' : ' → 正确答案：<strong style="color:var(--green);">' + (item.correctAnswer||'') + '</strong>') + '</div>' +
         '<div class="mcq-review-explain">💡 ' + (item.explanation||'') + '</div></div>';
     }).join('');
-    document.getElementById('mcq-review').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + rhtml + '</div></div>';
+    finishDetailSection('loader-mcq',
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + rhtml + '</div></div>');
   }
 
   // 3. 学习路径
@@ -1228,7 +1256,8 @@ function appendDetailResults() {
       (step.link_hint ? '<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ' + step.link_hint + '</div>' : '') +
       '</div></div>';
     }).join('');
-    document.getElementById('learning-path').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + lhtml + '</div></div>';
+    finishDetailSection('loader-learning',
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + lhtml + '</div></div>');
   }
 }
 
@@ -1313,13 +1342,27 @@ function renderResults() {
     document.getElementById('insight-detail').innerHTML = detailHTML;
   }
 
-  // ── Loading placeholders (detail filled by appendDetailResults) ──
-  var progressBar = function(label) {
-    return '<div class="collapsible-loading"><div style="margin-bottom:8px;">' + label + '</div><div style="width:100%;height:4px;background:var(--hairline);border-radius:2px;overflow:hidden;"><div class="detail-progress-fill" style="height:100%;width:0%;background:var(--coral);border-radius:2px;animation:detailProgress 2s ease-in-out infinite;"></div></div></div>';
+  // ── Loading placeholders with tracked progress bars ──
+  state._detailTimers = {};
+  var makeLoader = function(id, label) {
+    return '<div id="' + id + '" class="collapsible-loading" style="border:1px solid var(--hairline);border-radius:10px;margin-bottom:8px;"><span>' + label + '</span><div class="detail-progress-track"><div id="' + id + '-bar" class="detail-progress-fill"></div></div></div>';
   };
-  document.getElementById('master-compare').innerHTML = progressBar('🎯 投资大师怎么看');
-  document.getElementById('mcq-review').innerHTML = progressBar('📋 逐题解析');
-  document.getElementById('learning-path').innerHTML = progressBar('📖 学习路径');
+  document.getElementById('detail-sections').innerHTML =
+    makeLoader('loader-master', '🎯 投资大师怎么看') +
+    makeLoader('loader-mcq', '📋 逐题解析') +
+    makeLoader('loader-learning', '📖 学习路径');
+
+  // Start progress bars: slowly fill to ~85% over ~20 seconds
+  ['loader-master','loader-mcq','loader-learning'].forEach(function(id) {
+    var bar = document.getElementById(id + '-bar');
+    if (!bar) return;
+    var elapsed = 0;
+    state._detailTimers[id] = setInterval(function() {
+      elapsed += 400;
+      var pct = Math.min(85, (elapsed / 20000) * 85);
+      bar.style.width = pct + '%';
+    }, 400);
+  });
 
   // Critical question — always visible at the bottom, NOT collapsible
   if (r.critical_question) {
