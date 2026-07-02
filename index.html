@@ -749,16 +749,25 @@ function allBatchesReady() {
 }
 
 function showCompanyError(name, suggestions) {
+  showScreen('screen-input');
   document.getElementById('btn-start').disabled = false;
-  var h = '<div style="text-align:center;padding:32px 16px;">' +
-    '<div style="font-size:40px;margin-bottom:12px;">🤔</div>' +
-    '<h3 style="color:var(--red);margin-bottom:8px;">"' + name + '" 似乎不是上市公司</h3>' +
-    '<p style="color:var(--muted);font-size:14px;margin-bottom:16px;">你是不是想输入：</p>' +
+  document.getElementById('company-name').value = '';
+  document.getElementById('company-name').focus();
+
+  // Show error message below the input
+  var existing = document.getElementById('company-error-msg');
+  if (existing) existing.remove();
+  var errDiv = document.createElement('div');
+  errDiv.id = 'company-error-msg';
+  errDiv.style.cssText = 'margin-top:16px;padding:16px;background:var(--red-bg);border:1px solid #f9d8d8;border-radius:10px;text-align:center;';
+  errDiv.innerHTML = '<div style="font-size:24px;margin-bottom:6px;">🤔</div>' +
+    '<p style="color:var(--red);font-size:14px;font-weight:600;margin-bottom:4px;">"' + name + '" 似乎不是上市公司</p>' +
+    '<p style="color:var(--muted);font-size:13px;margin-bottom:10px;">你是不是想输入：</p>' +
     suggestions.map(function(s) {
-      return '<button class="btn btn-outline btn-small" style="margin:4px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '\\\'') + '\';showScreen(\'screen-input\');document.getElementById(\'company-name\').focus();">' + s + '</button>';
+      return '<button class="btn btn-outline btn-small" style="margin:3px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '&#39;') + '\';document.getElementById(\'company-error-msg\').remove();">' + s + '</button>';
     }).join(' ') +
-    '<p style="margin-top:16px;"><button class="btn btn-outline btn-small" onclick="showScreen(\'screen-input\');document.getElementById(\'company-name\').focus();">← 重新输入</button></p></div>';
-  document.getElementById('screen-loading-questions').querySelector('.card-body').innerHTML = h;
+    '<p style="margin-top:8px;font-size:12px;color:var(--soft);">点击上方按钮自动填入，或手动重新输入</p>';
+  document.getElementById('screen-input').querySelector('.card-body').appendChild(errDiv);
 }
 
 // Generate a batch of questions
@@ -1147,7 +1156,7 @@ function appendDetailResults() {
         (item.isCorrect ? '' : ' → 正确答案：<strong style="color:var(--green);">' + (item.correctAnswer||'') + '</strong>') + '</div>' +
         '<div class="mcq-review-explain">💡 ' + (item.explanation||'') + '</div></div>';
     }).join('');
-    document.getElementById('mcq-review').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + rhtml + '</div></div>';
+    document.getElementById('mcq-review').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + rhtml + '</div></div>';
   }
 
   var masters = r.master_comparisons || [];
@@ -1161,7 +1170,7 @@ function appendDetailResults() {
       '<div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);"><strong>能力圈：</strong>' + (m.competence_insight||'') + '</div>' +
       '<div class="master-lesson"><strong>🧠 学到的：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
-    document.getElementById('master-compare').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>';
+    document.getElementById('master-compare').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + mhtml + '</div></div>';
   }
 
   var lp = r.learning_path || [];
@@ -1177,7 +1186,7 @@ function appendDetailResults() {
     if (r.critical_question) {
       lhtml += '<div style="margin-top:12px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '</div>';
     }
-    document.getElementById('learning-path').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + lhtml + '</div></div>';
+    document.getElementById('learning-path').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + lhtml + '</div></div>';
   }
 }
 
