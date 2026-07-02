@@ -539,6 +539,8 @@ body {
 
       <div class="learning-path" id="learning-path"></div>
 
+      <div id="critical-question"></div>
+
       <div class="footer-actions">
         <button class="btn btn-outline btn-small" onclick="resetApp()">再测一家公司 →</button>
       </div>
@@ -1110,13 +1112,13 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     showScreen('screen-results');
 
     // Phase 2a: MCQ review — background (small, fast)
-    var reviewPrompt = '你是价值投资评估专家。为以下' + state.mcqs.length + '道选择题逐题写explanation：正确答案为什么对，如果用户答错错在哪里。让用户心服口服。\\n严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
+    var reviewPrompt = '你是价值投资评估专家。为以下' + state.mcqs.length + '道选择题逐题写explanation：正确答案为什么对，如果用户答错错在哪里。让用户心服口服。\n严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
 
     callDeepSeek([
       { role: 'system', content: reviewPrompt },
-      { role: 'user', content: '逐题详情：\\n' + mcqDetail }
+      { role: 'user', content: '逐题详情：\n' + mcqDetail }
     ], 0.5, 2000).then(function(rc) {
-      var rj = rc.match(/\{[\\s\\S]*\}/);
+      var rj = rc.match(/\{[\s\S]*\}/);
       if (rj) {
         try {
           var rd = JSON.parse(rj[0]);
@@ -1127,13 +1129,13 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是价值投资专家。\\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
+    var mlPrompt = '你是价值投资专家。\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
       { role: 'user', content: '公司：' + state.company + '。用户需要针对这家公司建立能力圈的学习建议。' }
     ], 0.5, 2000).then(function(mc) {
-      var mj = mc.match(/\{[\\s\\S]*\}/);
+      var mj = mc.match(/\{[\s\S]*\}/);
       if (mj) {
         try {
           var md = JSON.parse(mj[0]);
@@ -1189,9 +1191,6 @@ function appendDetailResults() {
       (step.link_hint ? '<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ' + step.link_hint + '</div>' : '') +
       '</div></div>';
     }).join('');
-    if (r.critical_question) {
-      lhtml += '<div style="margin-top:12px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '</div>';
-    }
     document.getElementById('learning-path').innerHTML = '<div class="collapsible-section"><div class="collapsible-header" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body">' + lhtml + '</div></div>';
   }
 }
@@ -1280,10 +1279,11 @@ function renderResults() {
   // ── Loading placeholders (detail filled by appendDetailResults) ──
   document.getElementById('mcq-review').innerHTML = '<div class="collapsible-loading">⏳ 逐题解析加载中……</div>';
   document.getElementById('master-compare').innerHTML = '<div class="collapsible-loading">⏳ 大师对标加载中……</div>';
+  document.getElementById('learning-path').innerHTML = '<div class="collapsible-loading">⏳ 学习路径加载中……</div>';
+
+  // Critical question — always visible at the bottom, NOT collapsible
   if (r.critical_question) {
-    document.getElementById('learning-path').innerHTML = '<div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '<div class="critical-answer-section"><textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题……"></textarea><button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button><div id="critical-feedback" style="display:none;"></div></div></div><div class="collapsible-loading" style="margin-top:16px;">⏳ 学习路径加载中……</div>';
-  } else {
-    document.getElementById('learning-path').innerHTML = '<div class="collapsible-loading">⏳ 学习路径加载中……</div>';
+    document.getElementById('critical-question').innerHTML = '<div style="margin-top:16px;padding:16px;background:var(--canvas);border:1px solid var(--hairline);border-radius:10px;"><div style="font-size:16px;font-weight:600;color:var(--ink);margin-bottom:8px;">⚡ 终极检验问题</div><div style="font-size:14px;color:var(--body);line-height:1.55;margin-bottom:14px;">' + r.critical_question + '</div><textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题……" style="width:100%;padding:12px 14px;border:1px solid var(--hairline);border-radius:10px;font-size:15px;font-family:var(--font);color:var(--ink);background:#fdfcf9;resize:vertical;box-sizing:border-box;-webkit-appearance:none;"></textarea><button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button><div id="critical-feedback" style="display:none;margin-top:10px;"></div></div>';
   }
 }
 
