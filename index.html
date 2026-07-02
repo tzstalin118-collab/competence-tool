@@ -562,17 +562,30 @@ body {
 
 </div>
 
-<script src="https://web.sdk.qcloud.com/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
 <script>
 // ═══════════════════════════════════════
-// CloudBase SDK INIT (with fallback)
+// CloudBase SDK — load from multiple CDN fallbacks
 // ═══════════════════════════════════════
-let app = null;
-try {
-  app = cloudbase.init({ env: 'zhendongle-d0ggwk5ng35ab9858' });
-} catch(e) {
-  document.write('<div style="text-align:center;padding:60px;font-family:sans-serif;"><h2>加载失败</h2><p>请刷新页面重试</p></div>');
-  throw e;
+(function loadSDK(urls, idx) {
+  if (idx >= urls.length) {
+    window._sdkFailed = true;
+    return;
+  }
+  var s = document.createElement('script');
+  s.src = urls[idx];
+  s.onload = function() { window._sdkLoaded = true; };
+  s.onerror = function() { loadSDK(urls, idx + 1); };
+  document.head.appendChild(s);
+})([
+  'https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js',
+  'https://static.cloudbase.net/cloudbase-js-sdk/1.7.0/cloudbase.full.js'
+], 0);
+
+// Wait for SDK then init
+function initCloudBase() {
+  if (window._sdkLoaded && typeof cloudbase !== 'undefined') {
+    window._app = cloudbase.init({ env: 'zhendongle-d0ggwk5ng35ab9858' });
+  }
 }
 
 // ═══════════════════════════════════════
@@ -676,13 +689,28 @@ function selectMode(mode) {
 // API CALLS
 // ═══════════════════════════════════════
 async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
+  // Initialize SDK if needed
+  if (!window._app && !window._sdkFailed) {
+    initCloudBase();
+    // Wait up to 5 seconds for SDK to load
+    var waited = 0;
+    while (!window._app && !window._sdkFailed && waited < 50) {
+      await new Promise(function(r) { setTimeout(r, 100); });
+      waited++;
+    }
+  }
+
+  if (window._sdkFailed || !window._app) {
+    throw new Error('CloudBase SDK 加载失败，请刷新页面后重试');
+  }
+
   // Anonymous login (lazy, cached after first call)
   if (!callDeepSeek._authed) {
-    await app.auth().anonymousAuthProvider().signIn();
+    await window._app.auth().anonymousAuthProvider().signIn();
     callDeepSeek._authed = true;
   }
 
-  const result = await app.callFunction({
+  var result = await window._app.callFunction({
     name: 'proxy',
     data: {
       model: MODEL,
