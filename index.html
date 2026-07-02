@@ -1202,11 +1202,17 @@ function finishDetailSection(loaderId, html) {
     clearInterval(state._detailTimers[loaderId]);
     delete state._detailTimers[loaderId];
   }
-  // Replace loader with real content after brief delay (let bar hit 100% visually)
+  // Insert above remaining loaders (first to complete = on top)
   setTimeout(function() {
+    var container = document.getElementById('detail-sections');
     var loader = document.getElementById(loaderId);
-    if (loader) {
-      loader.insertAdjacentHTML('beforebegin', html);
+    if (container && loader) {
+      var firstLoader = container.querySelector('[id^="loader-"]');
+      if (firstLoader) {
+        firstLoader.insertAdjacentHTML('beforebegin', html);
+      } else {
+        container.insertAdjacentHTML('beforeend', html);
+      }
       loader.remove();
     }
   }, 350);
