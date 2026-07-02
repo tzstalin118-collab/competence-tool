@@ -377,6 +377,32 @@ body {
   .radar-container { max-width: 280px; }
 }
 
+
+/* ═══════════ COLLAPSIBLE ═══════════ */
+.collapsible-section {
+  margin-top: 16px; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden;
+}
+.collapsible-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; cursor: pointer; background: #fff;
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.collapsible-header:hover { background: var(--canvas); }
+.collapsible-header .collapse-arrow {
+  font-size: 12px; color: var(--soft); transition: transform 0.25s;
+}
+.collapsible-header.open .collapse-arrow { transform: rotate(90deg); }
+.collapsible-body {
+  padding: 0 16px; max-height: 0; overflow: hidden;
+  transition: max-height 0.35s ease, padding 0.35s ease;
+}
+.collapsible-body.expanded {
+  max-height: 10000px; padding: 0 16px 16px;
+}
+.collapsible-loading {
+  text-align: center; padding: 12px; color: var(--soft); font-size: 13px;
+}
 </style>
 </head>
 <body>
@@ -662,15 +688,34 @@ async function startDiagnosis() {
   state.results = null;
   state.totalMCQ = 0;
   state._batch2Ready = false;
+  state._batch3Ready = false;
 
   document.getElementById('btn-start').disabled = true;
-  document.getElementById('loading-company-label').textContent = `公司：${company}  ·  ${state.mode === 'quick' ? '快速模式' : '深度模式'}`;
   showScreen('screen-loading-questions');
+  document.getElementById('loading-company-label').textContent = '正在验证 ' + company + ' ...';
 
   try {
-    // Batch 1: first 8 MCQs — generate and show immediately
-    const batch1Result = await generateBatch(1, 8,
-      '商业模式理解(3题)、竞争优势判断(3题)、财务/经营理解(2题)', false);
+    // Step 0: Validate company name
+    var vp = '严格判断"' + company + '"是不是真实上市公司。编造的、拼错的、不存在的、非上市私企都返回valid:false并给3个最接近的上市公司建议。明确上市公司才返回valid:true。只返回JSON。';
+    var vc = await callDeepSeek([
+      { role: 'system', content: '你是严格的上市公司验证员。对不存在的公司返回valid:false。只返回JSON。' },
+      { role: 'user', content: vp }
+    ], 0.1, 200);
+    var vj = vc.match(/\{[\s\S]*\}/);
+    if (vj) {
+      var vr = JSON.parse(vj[0]);
+      if (vr.valid === false && vr.suggestions && vr.suggestions.length > 0) {
+        showCompanyError(company, vr.suggestions);
+        return;
+      }
+    }
+
+    document.getElementById('loading-company-label').textContent = company + '  ·  ' + (state.mode === 'quick' ? '快速模式' : '深度模式');
+    document.getElementById('loading-q-title').textContent = 'AI 正在生成第1批题目……';
+
+    // Batch 1: first 5 MCQs — generate and show immediately
+    const batch1Result = await generateBatch(1, 5,
+      '商业模式理解(2题)、竞争优势判断(2题)、财务/经营理解(1题)', false);
     state.mcqs = batch1Result.mcqs;
     state.totalMCQ = batch1Result.mcqs.length;
     state.currentQ = 0;
@@ -678,32 +723,42 @@ async function startDiagnosis() {
     renderProgress();
     renderQuestion();
     showScreen('screen-questions');
-    console.log('screen-questions visible:', document.getElementById('screen-questions').style.display);
-    console.log('question-container innerHTML length:', document.getElementById('question-container').innerHTML.length);
-    console.log('First MCQ:', state.mcqs[0]?.question);
 
-    // Batch 2: fire in background while user answers batch 1
-    generateBatch(2, 7,
-      '财务/经营理解(1题)、管理层判断(2题)、行业/风险认知(2题)、自我认知诚实度(2题)', true
-    ).then(batch2Result => {
-      if (batch2Result) {
-        state.mcqs = [...state.mcqs, ...batch2Result.mcqs];
-        state.openEnded = batch2Result.open_ended || [];
-        state.totalMCQ = state.mcqs.length;
-        state._batch2Ready = true;
-        renderProgress();
-        renderQuestion(); // refresh button text
-      }
-    }).catch(err => {
-      console.error('后台生成剩余题目失败:', err);
-      state._batch2Ready = true; // proceed with what we have
-      renderQuestion();
-    });
+    // Batch 2: 5 more MCQs in background
+    generateBatch(2, 5,
+      '财务/经营理解(2题)、管理层判断(2题)、行业/风险认知(1题)', false
+    ).then(function(r) {
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.totalMCQ = state.mcqs.length; state._batch2Ready = true; renderProgress(); renderQuestion(); }
+    }).catch(function(e) { console.error('B2:', e); state._batch2Ready = true; renderQuestion(); });
+
+    // Batch 3: last 5 MCQs + 3 open-ended in background
+    generateBatch(3, 5,
+      '行业/风险认知(1题)、自我认知诚实度(2题)、商业模式理解(1题)、竞争优势判断(1题)', true
+    ).then(function(r) {
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.openEnded = r.open_ended || []; state.totalMCQ = state.mcqs.length; state._batch3Ready = true; renderProgress(); renderQuestion(); }
+    }).catch(function(e) { console.error('B3:', e); state._batch3Ready = true; renderQuestion(); });
 
   } catch (err) {
     console.error(err);
     showError('生成题目失败', err.message);
   }
+}
+
+function allBatchesReady() {
+  return state._batch2Ready === true && state._batch3Ready === true;
+}
+
+function showCompanyError(name, suggestions) {
+  document.getElementById('btn-start').disabled = false;
+  var h = '<div style="text-align:center;padding:32px 16px;">' +
+    '<div style="font-size:40px;margin-bottom:12px;">🤔</div>' +
+    '<h3 style="color:var(--red);margin-bottom:8px;">"' + name + '" 似乎不是上市公司</h3>' +
+    '<p style="color:var(--muted);font-size:14px;margin-bottom:16px;">你是不是想输入：</p>' +
+    suggestions.map(function(s) {
+      return '<button class="btn btn-outline btn-small" style="margin:4px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '\\\'') + '\';showScreen(\'screen-input\');document.getElementById(\'company-name\').focus();">' + s + '</button>';
+    }).join(' ') +
+    '<p style="margin-top:16px;"><button class="btn btn-outline btn-small" onclick="showScreen(\'screen-input\');document.getElementById(\'company-name\').focus();">← 重新输入</button></p></div>';
+  document.getElementById('screen-loading-questions').querySelector('.card-body').innerHTML = h;
 }
 
 // Generate a batch of questions
@@ -728,7 +783,7 @@ ${dimensions}
 - 同维度题目层层递进：基础→深层→极限
 
 ## 严格JSON（仅JSON，无markdown包裹）
-{"mcqs":[{"id":${batchNum === 1 ? 1 : 9},"dimension":"...","question":"...","options":["A. ..","B. ..","C. ..","D. .."],"correct":"A"},...]${withOpenEnded ? ',"open_ended":[{"id":' + (count + 1) + ',"dimension":"综合追问","question":"..."},...]' : ''}}`;
+{"mcqs":[{"id":${batchNum === 1 ? 1 : batchNum === 2 ? 6 : 11},"dimension":"...","question":"...","options":["A. ..","B. ..","C. ..","D. .."],"correct":"A"},...]${withOpenEnded ? ',"open_ended":[{"id":' + (count + 1) + ',"dimension":"综合追问","question":"..."},...]' : ''}}`;
 
   const userPrompt = state.claim
     ? `公司：${state.company}\n用户自述：${state.claim}\n请生成第${batchNum}批题目（${dimensions}）。`
@@ -819,7 +874,7 @@ function renderQuestion() {
   }
 
   if (state.currentQ === total - 1) {
-    if (state._batch2Ready === false) {
+    if (!allBatchesReady()) {
       btnNext.textContent = '⏳ 更多题目加载中...';
       btnNext.disabled = true;
     } else {
@@ -930,8 +985,8 @@ function nextQuestion() {
     return;
   }
 
-  // At the last question — check if background generation is still pending
-  if (state._batch2Ready === false) {
+  // At the last question — check if background batches are still pending
+  if (!allBatchesReady()) {
     if (q.type === 'open') saveOpenAnswer();
     showScreen('screen-loading-questions');
     document.getElementById('loading-q-title').textContent = 'AI 正在生成剩余题目……';
@@ -951,8 +1006,8 @@ function nextQuestion() {
     // Timeout after 15 seconds
     setTimeout(() => {
       clearInterval(checkInterval);
-      if (state._batch2Ready === false) {
-        state._batch2Ready = true; // give up, proceed with what we have
+      if (!allBatchesReady()) {
+        state._batch2Ready = true; state._batch3Ready = true; // give up, proceed with what we have
         showScreen('screen-questions');
         submitDiagnosis();
       }
@@ -1082,34 +1137,36 @@ ${KNOWLEDGE_BASE}
 }
 
 function appendDetailResults() {
-  const r = state.results;
-  const review = r.mcq_review || [];
+  var r = state.results;
+  var review = r.mcq_review || [];
   if (review.length > 0) {
-    document.getElementById('mcq-review').innerHTML = '<h3>📋 逐题解析</h3>' + review.map((item, i) =>
-      '<div class="mcq-review-item ' + (item.isCorrect ? 'correct' : 'wrong') + '">' +
-      '<div class="mcq-review-q">' + (item.isCorrect ? '✅' : '❌') + ' Q' + (i+1) + '. ' + (item.question||'') + '</div>' +
-      '<div class="mcq-review-answer">你的答案：<strong style="color:' + (item.isCorrect ? 'var(--green)' : 'var(--red)') + ';">' + (item.userAnswer||'未作答') + '</strong>' +
-      (item.isCorrect ? '' : ' → 正确答案：<strong style="color:var(--green);">' + (item.correctAnswer||'') + '</strong>') + '</div>' +
-      '<div class="mcq-review-explain">💡 ' + (item.explanation||'') + '</div></div>'
-    ).join('');
+    var rhtml = review.map(function(item, i) {
+      return '<div class="mcq-review-item ' + (item.isCorrect ? 'correct' : 'wrong') + '">' +
+        '<div class="mcq-review-q">' + (item.isCorrect ? '✅' : '❌') + ' Q' + (i+1) + '. ' + (item.question||'') + '</div>' +
+        '<div class="mcq-review-answer">你的答案：<strong style="color:' + (item.isCorrect ? 'var(--green)' : 'var(--red)') + ';">' + (item.userAnswer||'未作答') + '</strong>' +
+        (item.isCorrect ? '' : ' → 正确答案：<strong style="color:var(--green);">' + (item.correctAnswer||'') + '</strong>') + '</div>' +
+        '<div class="mcq-review-explain">💡 ' + (item.explanation||'') + '</div></div>';
+    }).join('');
+    document.getElementById('mcq-review').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + rhtml + '</div></div>';
   }
 
-  const masters = r.master_comparisons || [];
+  var masters = r.master_comparisons || [];
   if (masters.length > 0) {
     var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
-    document.getElementById('master-compare').innerHTML = '<h3>🎯 投资大师怎么看</h3>' + masters.map(function(m, i) {
-      return '<div class="master-card" style="background:' + bg[i%4] + ';">' +
+    var mhtml = masters.map(function(m, i) {
+      return '<div class="master-card" style="background:' + bg[i%4] + ';margin-bottom:8px;">' +
       '<div class="master-card-header"><div class="master-avatar">' + (m.avatar||'🎯') + '</div>' +
       '<div><div class="master-name">' + (m.master||'') + '</div><div class="master-company">' + (m.company||'') + '</div></div></div>' +
       '<div class="master-insight">' + (m.story||'') + '</div>' +
       '<div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);"><strong>能力圈：</strong>' + (m.competence_insight||'') + '</div>' +
       '<div class="master-lesson"><strong>🧠 学到的：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
+    document.getElementById('master-compare').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>';
   }
 
   var lp = r.learning_path || [];
   if (lp.length > 0) {
-    var ph = '<h3>📖 你的学习路径</h3>' + lp.map(function(step, i) {
+    var lhtml = lp.map(function(step, i) {
       return '<div class="learning-step"><div class="step-num">' + (i+1) + '</div>' +
       '<div class="step-content"><div class="step-title">' + (step.title||'') + '</div>' +
       '<div class="step-detail">' + (step.detail||'') + '</div>' +
@@ -1118,10 +1175,16 @@ function appendDetailResults() {
       '</div></div>';
     }).join('');
     if (r.critical_question) {
-      ph += '<div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '<div class="critical-answer-section"><textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题……"></textarea><button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button><div id="critical-feedback" style="display:none;"></div></div></div>';
+      lhtml += '<div style="margin-top:12px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '</div>';
     }
-    document.getElementById('learning-path').innerHTML = ph;
+    document.getElementById('learning-path').innerHTML = '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + lhtml + '</div></div>';
   }
+}
+
+function toggleCollapse(header) {
+  header.classList.toggle('open');
+  var body = header.nextElementSibling;
+  if (body) body.classList.toggle('expanded');
 }
 
 // ═══════════════════════════════════════
@@ -1199,83 +1262,14 @@ function renderResults() {
     document.getElementById('insight-detail').innerHTML = detailHTML;
   }
 
-  // ── MCQ Review ──
-  const mcqReview = r.mcq_review || [];
-  if (mcqReview.length > 0) {
-    const reviewHTML = `
-      <h3>📋 逐题解析</h3>
-      ${mcqReview.map((item, i) => `
-        <div class="mcq-review-item ${item.isCorrect ? 'correct' : 'wrong'}">
-          <div class="mcq-review-q">${item.isCorrect ? '✅' : '❌'} Q${i+1}. ${item.question || ''}</div>
-          <div class="mcq-review-answer">
-            你的答案：<strong style="color:${item.isCorrect ? 'var(--green)' : 'var(--red)'};">${item.userAnswer || '未作答'}</strong>
-            ${!item.isCorrect ? ` → 正确答案：<strong style="color:var(--green);">${item.correctAnswer || ''}</strong>` : ''}
-          </div>
-          <div class="mcq-review-explain">💡 ${item.explanation || ''}</div>
-        </div>
-      `).join('')}
-    `;
-    document.getElementById('mcq-review').innerHTML = reviewHTML;
+  // ── Loading placeholders (detail filled by appendDetailResults) ──
+  document.getElementById('mcq-review').innerHTML = '<div class="collapsible-loading">⏳ 逐题解析加载中……</div>';
+  document.getElementById('master-compare').innerHTML = '<div class="collapsible-loading">⏳ 大师对标加载中……</div>';
+  if (r.critical_question) {
+    document.getElementById('learning-path').innerHTML = '<div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;"><strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>' + r.critical_question + '<div class="critical-answer-section"><textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题……"></textarea><button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button><div id="critical-feedback" style="display:none;"></div></div></div><div class="collapsible-loading" style="margin-top:16px;">⏳ 学习路径加载中……</div>';
   } else {
-    document.getElementById('mcq-review').innerHTML = '';
+    document.getElementById('learning-path').innerHTML = '<div class="collapsible-loading">⏳ 学习路径加载中……</div>';
   }
-
-  // ── Master Comparison ──
-  const masters = r.master_comparisons || [];
-  if (masters.length > 0) {
-    const bgColors = ['#f4faf6', '#fefaf3', '#fef5f5', '#f8f6fd'];
-    const masterHTML = `
-      <h3>🎯 投资大师怎么看"${state.company}"这类企业</h3>
-      ${masters.map((m, i) => `
-        <div class="master-card" style="background:${bgColors[i % bgColors.length]};">
-          <div class="master-card-header">
-            <div class="master-avatar" style="background:${bgColors[i % bgColors.length]};">${m.avatar || '🎯'}</div>
-            <div>
-              <div class="master-name">${m.master || ''}</div>
-              <div class="master-company">${m.company || ''}</div>
-            </div>
-          </div>
-          <div class="master-insight">${m.story || ''}</div>
-          <div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);">
-            <strong>能力圈：</strong>${m.competence_insight || ''}
-          </div>
-          <div class="master-lesson">
-            <strong>🧠 学到的：</strong>${m.lesson || ''}
-          </div>
-        </div>
-      `).join('')}
-    `;
-    document.getElementById('master-compare').innerHTML = masterHTML;
-  } else {
-    document.getElementById('master-compare').innerHTML = '';
-  }
-
-  // ── Learning path ──
-  const lp = r.learning_path || [];
-  const pathHTML = `
-    <h3>📖 你的学习路径</h3>
-    ${lp.map((step, i) => `
-      <div class="learning-step">
-        <div class="step-num">${i + 1}</div>
-        <div class="step-content">
-          <div class="step-title">${step.title || ''}</div>
-          <div class="step-detail">${step.detail || ''}</div>
-          ${step.resource ? `<div style="margin-top:4px;"><span class="step-resource">📚 ${step.resource}</span></div>` : ''}
-          ${step.link_hint ? `<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ${step.link_hint}</div>` : ''}
-        </div>
-      </div>
-    `).join('')}
-    ${r.critical_question ? `
-    <div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;">
-      <strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>${r.critical_question}
-      <div class="critical-answer-section">
-        <textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题。看看你是真懂还是……" style="width:100%;padding:12px;border:1px solid var(--hairline);border-radius:8px;font-size:14px;font-family:var(--font);margin-top:10px;resize:vertical;"></textarea>
-        <button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button>
-        <div id="critical-feedback" style="display:none;"></div>
-      </div>
-    </div>` : ''}
-  `;
-  document.getElementById('learning-path').innerHTML = pathHTML;
 }
 
 function renderQuickDimensionBars(r) {
