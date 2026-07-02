@@ -1109,35 +1109,41 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     renderResults();
     showScreen('screen-results');
 
-    // Phase 2: Detail — background
-    const detailPrompt = `你是价值投资能力圈评估专家。
-
-${KNOWLEDGE_BASE}
-
-## 基于以下数据生成三部分：
-## 1. mcq_review：每题写explanation，解释为什么对/错
-## 2. master_comparisons：巴菲特、芒格、段永平、李录中至少2位在"${state.company}"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2-3句), competence_insight, lesson
-## 3. learning_path：3-5条学习建议，字段：title, detail, resource, link_hint
-## 严格JSON：{"mcq_review":[...],"master_comparisons":[...],"learning_path":[...]}`;
-
-    const detailUserPrompt = '公司：' + state.company + '\n\n逐题详情：\n' + mcqDetail;
+    // Phase 2a: MCQ review — background (small, fast)
+    var reviewPrompt = '你是价值投资评估专家。为以下' + state.mcqs.length + '道选择题逐题写explanation：正确答案为什么对，如果用户答错错在哪里。让用户心服口服。\\n严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
 
     callDeepSeek([
-      { role: 'system', content: detailPrompt },
-      { role: 'user', content: detailUserPrompt }
-    ], 0.5, 3500).then(detailContent => {
-      const dj = detailContent.match(/\{[\s\S]*\}/);
-      if (dj) {
+      { role: 'system', content: reviewPrompt },
+      { role: 'user', content: '逐题详情：\\n' + mcqDetail }
+    ], 0.5, 2000).then(function(rc) {
+      var rj = rc.match(/\{[\\s\\S]*\}/);
+      if (rj) {
         try {
-          let dr; try { dr = JSON.parse(dj[0]); } catch(pe) { var raw2 = dj[0]; var lc = Math.max(raw2.lastIndexOf("}"), raw2.lastIndexOf("]")); if (lc > 0) raw2 = raw2.substring(0, lc + 1) + "\n]}"; try { dr = JSON.parse(raw2); } catch(e2) { return; } }
-          state.results.mcq_review = dr.mcq_review || [];
-          state.results.master_comparisons = dr.master_comparisons || [];
-          state.results.learning_path = dr.learning_path || [];
-          state.results._detailReady = true;
-          appendDetailResults();
-        } catch(e) { console.error('Detail parse error:', e); }
+          var rd = JSON.parse(rj[0]);
+          state.results.mcq_review = rd.mcq_review || [];
+        } catch(e) { console.error('Review parse:', e); }
       }
-    }).catch(err => { console.error('Detail failed:', err); });
+      appendDetailResults();
+    }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
+
+    // Phase 2b: Masters + Learning path — background (small, fast)
+    var mlPrompt = '你是价值投资专家。\\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
+
+    callDeepSeek([
+      { role: 'system', content: mlPrompt },
+      { role: 'user', content: '公司：' + state.company + '。用户需要针对这家公司建立能力圈的学习建议。' }
+    ], 0.5, 2000).then(function(mc) {
+      var mj = mc.match(/\{[\\s\\S]*\}/);
+      if (mj) {
+        try {
+          var md = JSON.parse(mj[0]);
+          state.results.master_comparisons = md.master_comparisons || [];
+          state.results.learning_path = md.learning_path || [];
+          state.results._detailReady = true;
+        } catch(e) { console.error('ML parse:', e); }
+      }
+      appendDetailResults();
+    }).catch(function(e) { console.error('ML failed:', e); appendDetailResults(); });
 
   } catch (err) {
     console.error(err);
