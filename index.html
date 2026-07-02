@@ -662,48 +662,80 @@ async function startDiagnosis() {
   state.results = null;
   state.totalMCQ = 0;
   state._batch2Ready = false;
+  state._batch3Ready = false;
 
   document.getElementById('btn-start').disabled = true;
-  document.getElementById('loading-company-label').textContent = `公司：${company}  ·  ${state.mode === 'quick' ? '快速模式' : '深度模式'}`;
+  document.getElementById('loading-company-label').textContent = '验证公司名...';
   showScreen('screen-loading-questions');
 
   try {
-    // Batch 1: first 8 MCQs — generate and show immediately
-    const batch1Result = await generateBatch(1, 8,
-      '商业模式理解(3题)、竞争优势判断(3题)、财务/经营理解(2题)', false);
-    state.mcqs = batch1Result.mcqs;
-    state.totalMCQ = batch1Result.mcqs.length;
-    state.currentQ = 0;
+    // ═══ STEP 0: Validate company name ═══
+    var vp = '严格判断"' + company + '"是不是一家真实存在的上市公司。注意：如果看起来像是编造的、拼写错误的、不存在的、或者是非上市私企，请返回valid:false并给出3个最接近的上市公司名称建议。只有明确的上市公司才返回valid:true。只返回JSON：{"valid":true} 或 {"valid":false,"suggestions":["建议1","建议2","建议3"]}';
+    var vc = await callDeepSeek([
+      { role: 'system', content: '你是严格的上市公司信息验证员。对不存在的公司、编造的名称、拼写错误都返回valid:false。只返回JSON。' },
+      { role: 'user', content: vp }
+    ], 0.1, 300);
 
+    var vj = vc.match(/\{[\s\S]*\}/);
+    if (vj) {
+      var vr = JSON.parse(vj[0]);
+      if (vr.valid === false && vr.suggestions && vr.suggestions.length > 0) {
+        document.getElementById('btn-start').disabled = false;
+        document.getElementById('loading-company-label').textContent = '';
+        showCompanyError(company, vr.suggestions);
+        return;
+      }
+    }
+
+    document.getElementById('loading-company-label').textContent = company + '  ·  生成第1批题目...';
+
+    // ═══ STEP 1: Batch 1 — 5 MCQs, show immediately ═══
+    var b1 = await generateBatch(1, 5,
+      '商业模式理解(2题)、竞争优势判断(2题)、财务/经营理解(1题)', false);
+    state.mcqs = b1.mcqs;
+    state.totalMCQ = b1.mcqs.length;
+    state.currentQ = 0;
     renderProgress();
     renderQuestion();
     showScreen('screen-questions');
-    console.log('screen-questions visible:', document.getElementById('screen-questions').style.display);
-    console.log('question-container innerHTML length:', document.getElementById('question-container').innerHTML.length);
-    console.log('First MCQ:', state.mcqs[0]?.question);
 
-    // Batch 2: fire in background while user answers batch 1
-    generateBatch(2, 7,
-      '财务/经营理解(1题)、管理层判断(2题)、行业/风险认知(2题)、自我认知诚实度(2题)', true
-    ).then(batch2Result => {
-      if (batch2Result) {
-        state.mcqs = [...state.mcqs, ...batch2Result.mcqs];
-        state.openEnded = batch2Result.open_ended || [];
-        state.totalMCQ = state.mcqs.length;
-        state._batch2Ready = true;
-        renderProgress();
-        renderQuestion(); // refresh button text
-      }
-    }).catch(err => {
-      console.error('后台生成剩余题目失败:', err);
-      state._batch2Ready = true; // proceed with what we have
-      renderQuestion();
-    });
+    // ═══ STEP 2: Fire batches 2 & 3 in background ═══
+    generateBatch(2, 5,
+      '财务/经营理解(2题)、管理层判断(2题)、行业/风险认知(1题)', false
+    ).then(function(r) {
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.totalMCQ = state.mcqs.length; state._batch2Ready = true; renderProgress(); renderQuestion(); }
+    }).catch(function(e) { console.error('B2:', e); state._batch2Ready = true; renderQuestion(); });
+
+    generateBatch(3, 5,
+      '行业/风险认知(1题)、自我认知诚实度(2题)、商业模式理解(1题)、竞争优势判断(1题)', true
+    ).then(function(r) {
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.openEnded = r.open_ended || []; state.totalMCQ = state.mcqs.length; state._batch3Ready = true; renderProgress(); renderQuestion(); }
+    }).catch(function(e) { console.error('B3:', e); state._batch3Ready = true; renderQuestion(); });
 
   } catch (err) {
     console.error(err);
     showError('生成题目失败', err.message);
   }
+}
+
+function allBatchesReady() {
+  return state._batch2Ready === true && state._batch3Ready === true;
+}
+
+function showCompanyError(name, suggestions) {
+  var h = '<div style="text-align:center;padding:20px;">' +
+    '<div style="font-size:40px;margin-bottom:12px;">🤔</div>' +
+    '<h3 style="color:var(--red);margin-bottom:8px;">"' + name + '" 似乎不是上市公司</h3>' +
+    '<p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:16px;">你是不是想输入：</p>' +
+    suggestions.map(function(s) {
+      return '<button class="btn btn-outline btn-small" style="margin:4px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s + '\';resetApp();">' + s + '</button>';
+    }).join(' ') +
+    '<p style="margin-top:16px;"><button class="btn btn-outline btn-small" onclick="resetApp()">← 重新输入</button></p></div>';
+  document.getElementById('screen-questions').querySelector('.card-body').innerHTML = h;
+  document.getElementById('btn-prev').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('btn-skip').style.display = 'none';
+  document.getElementById('screen-questions').style.display = '';
 }
 
 // Generate a batch of questions
@@ -819,7 +851,7 @@ function renderQuestion() {
   }
 
   if (state.currentQ === total - 1) {
-    if (state._batch2Ready === false) {
+    if (!allBatchesReady()) {
       btnNext.textContent = '⏳ 更多题目加载中...';
       btnNext.disabled = true;
     } else {
@@ -931,7 +963,7 @@ function nextQuestion() {
   }
 
   // At the last question — check if background generation is still pending
-  if (state._batch2Ready === false) {
+  if (!allBatchesReady()) {
     if (q.type === 'open') saveOpenAnswer();
     showScreen('screen-loading-questions');
     document.getElementById('loading-q-title').textContent = 'AI 正在生成剩余题目……';
@@ -951,7 +983,7 @@ function nextQuestion() {
     // Timeout after 15 seconds
     setTimeout(() => {
       clearInterval(checkInterval);
-      if (state._batch2Ready === false) {
+      if (!allBatchesReady()) {
         state._batch2Ready = true; // give up, proceed with what we have
         showScreen('screen-questions');
         submitDiagnosis();
