@@ -562,11 +562,22 @@ body {
 
 </div>
 
+<script src="https://web.sdk.qcloud.com/cloudbase-js-sdk/1.7.0/cloudbase.full.js"></script>
 <script>
+// ═══════════════════════════════════════
+// CloudBase SDK INIT (with fallback)
+// ═══════════════════════════════════════
+let app = null;
+try {
+  app = cloudbase.init({ env: 'zhendongle-d0ggwk5ng35ab9858' });
+} catch(e) {
+  document.write('<div style="text-align:center;padding:60px;font-family:sans-serif;"><h2>加载失败</h2><p>请刷新页面重试</p></div>');
+  throw e;
+}
+
 // ═══════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════
-const PROXY_URL = '/api/proxy';
 const MODEL = 'deepseek-chat';
 
 // ═══════════════════════════════════════
@@ -665,24 +676,27 @@ function selectMode(mode) {
 // API CALLS
 // ═══════════════════════════════════════
 async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
-  const resp = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  // Anonymous login (lazy, cached after first call)
+  if (!callDeepSeek._authed) {
+    await app.auth().anonymousAuthProvider().signIn();
+    callDeepSeek._authed = true;
+  }
+
+  const result = await app.callFunction({
+    name: 'proxy',
+    data: {
       model: MODEL,
       messages: messages,
       temperature: temperature,
       max_tokens: maxTokens
-    })
+    }
   });
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`API 错误 (${resp.status}): ${err.slice(0, 300)}`);
+  if (result.result && result.result.error) {
+    throw new Error('API 错误: ' + JSON.stringify(result.result.error));
   }
 
-  const data = await resp.json();
-  return data.choices[0].message.content;
+  return result.result.choices[0].message.content;
 }
 
 // ═══════════════════════════════════════
