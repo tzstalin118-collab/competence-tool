@@ -1371,6 +1371,253 @@ function renderDeepRadar(scores) {
 }
 
 // ═══════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════
+function renderResults() {
+  const r = state.results;
+  const isQuick = state.mode === 'quick';
+
+  // ── Score circle ──
+  let circleColor, circleBg, displayScore, displayLabel;
+  if (isQuick) {
+    const level = r.level || '';
+    if (level.includes('A')) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
+    else if (level.includes('B')) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
+    else if (level.includes('C')) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
+    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
+    displayScore = r.level ? r.level.charAt(0) : '?';
+    displayLabel = r.level || '';
+  } else {
+    const scores = r.scores || {};
+    const vals = Object.values(scores);
+    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : 0;
+    if (avg >= 8) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
+    else if (avg >= 6) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
+    else if (avg >= 4) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
+    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
+    displayScore = avg;
+    displayLabel = r.overall_level || '';
+  }
+
+  const circle = document.getElementById('score-circle');
+  circle.style.background = circleBg;
+  circle.style.border = `3px solid ${circleColor}`;
+  const scoreLabelStyle = isQuick ? 'font-size:12px;' : 'font-size:11px;';
+  circle.innerHTML = `<div class="score-big" style="color:${circleColor};">${displayScore}</div><div class="score-label" style="color:${circleColor};${scoreLabelStyle}">${displayLabel}</div>`;
+
+  document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
+  document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
+
+  const modeBadge = document.getElementById('result-mode-badge');
+  modeBadge.textContent = isQuick ? '⚡ 快速诊断（仅选择题）' : '🔬 深度诊断';
+  modeBadge.style.background = isQuick ? 'var(--card)' : 'var(--amber-bg)';
+  modeBadge.style.color = isQuick ? 'var(--muted)' : 'var(--amber)';
+
+  // ── MCQ accuracy bar ──
+  document.getElementById('dimension-scores').innerHTML = isQuick
+    ? renderQuickDimensionBars(r)
+    : renderDeepDimensionBars(r);
+
+  // ── Radar ──
+  if (isQuick) {
+    renderQuickRadar(r);
+  } else {
+    renderDeepRadar(r.scores);
+  }
+
+  // ── Key insight ──
+  document.getElementById('insight-key').innerHTML = `🔍 <strong>核心洞察</strong><br>${r.key_insight || ''}`;
+
+  // ── Dimension detail ──
+  if (isQuick && r.dimension_summary) {
+    const dims = Object.keys(r.dimension_summary);
+    const detailHTML = dims.map(d =>
+      `<div style="margin-bottom:10px;"><strong style="color:var(--ink);">${d}</strong><br><span style="color:var(--muted);font-size:13px;">${r.dimension_summary[d]}</span></div>`
+    ).join('');
+    document.getElementById('insight-detail').innerHTML = detailHTML;
+  } else if (!isQuick && r.dimension_analysis) {
+    const da = r.dimension_analysis;
+    const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+    const detailHTML = dims.map(d => {
+      const a = da[d] || {};
+      return `<div style="margin-bottom:10px;"><strong style="color:var(--ink);">${d}</strong> <span style="color:var(--green);font-size:13px;">✅ ${a.strength||''}</span> <span style="color:var(--coral);font-size:13px;">⚠️ ${a.weakness||''}</span></div>`;
+    }).join('');
+    document.getElementById('insight-detail').innerHTML = detailHTML;
+  }
+
+  // ── MCQ Review ──
+  const mcqReview = r.mcq_review || [];
+  if (mcqReview.length > 0) {
+    const reviewHTML = `
+      <h3>📋 逐题解析</h3>
+      ${mcqReview.map((item, i) => `
+        <div class="mcq-review-item ${item.isCorrect ? 'correct' : 'wrong'}">
+          <div class="mcq-review-q">${item.isCorrect ? '✅' : '❌'} Q${i+1}. ${item.question || ''}</div>
+          <div class="mcq-review-answer">
+            你的答案：<strong style="color:${item.isCorrect ? 'var(--green)' : 'var(--red)'};">${item.userAnswer || '未作答'}</strong>
+            ${!item.isCorrect ? ` → 正确答案：<strong style="color:var(--green);">${item.correctAnswer || ''}</strong>` : ''}
+          </div>
+          <div class="mcq-review-explain">💡 ${item.explanation || ''}</div>
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('mcq-review').innerHTML = reviewHTML;
+  } else {
+    document.getElementById('mcq-review').innerHTML = '';
+  }
+
+  // ── Master Comparison ──
+  const masters = r.master_comparisons || [];
+  if (masters.length > 0) {
+    const bgColors = ['#f4faf6', '#fefaf3', '#fef5f5', '#f8f6fd'];
+    const masterHTML = `
+      <h3>🎯 投资大师怎么看"${state.company}"这类企业</h3>
+      ${masters.map((m, i) => `
+        <div class="master-card" style="background:${bgColors[i % bgColors.length]};">
+          <div class="master-card-header">
+            <div class="master-avatar" style="background:${bgColors[i % bgColors.length]};">${m.avatar || '🎯'}</div>
+            <div>
+              <div class="master-name">${m.master || ''}</div>
+              <div class="master-company">${m.company || ''}</div>
+            </div>
+          </div>
+          <div class="master-insight">${m.story || ''}</div>
+          <div style="margin-top:8px;font-size:13px;line-height:1.5;color:var(--body);">
+            <strong>能力圈：</strong>${m.competence_insight || ''}
+          </div>
+          <div class="master-lesson">
+            <strong>🧠 学到的：</strong>${m.lesson || ''}
+          </div>
+        </div>
+      `).join('')}
+    `;
+    document.getElementById('master-compare').innerHTML = masterHTML;
+  } else {
+    document.getElementById('master-compare').innerHTML = '';
+  }
+
+  // ── Learning path ──
+  const lp = r.learning_path || [];
+  const pathHTML = `
+    <h3>📖 你的学习路径</h3>
+    ${lp.map((step, i) => `
+      <div class="learning-step">
+        <div class="step-num">${i + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${step.title || ''}</div>
+          <div class="step-detail">${step.detail || ''}</div>
+          ${step.resource ? `<div style="margin-top:4px;"><span class="step-resource">📚 ${step.resource}</span></div>` : ''}
+          ${step.link_hint ? `<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ${step.link_hint}</div>` : ''}
+        </div>
+      </div>
+    `).join('')}
+    ${r.critical_question ? `
+    <div style="margin-top:16px;padding:14px;background:var(--canvas);border-radius:10px;font-size:14px;color:var(--body);line-height:1.5;">
+      <strong style="color:var(--ink);">⚡ 终极检验问题</strong><br>${r.critical_question}
+      <div class="critical-answer-section">
+        <textarea id="critical-answer" rows="3" placeholder="来，试试回答这个问题。看看你是真懂还是……" style="width:100%;padding:12px;border:1px solid var(--hairline);border-radius:8px;font-size:14px;font-family:var(--font);margin-top:10px;resize:vertical;"></textarea>
+        <button class="btn btn-outline btn-small" style="margin-top:8px;" onclick="submitCriticalAnswer()" id="btn-critical-submit">提交回答，获取 AI 反馈 →</button>
+        <div id="critical-feedback" style="display:none;"></div>
+      </div>
+    </div>` : ''}
+  `;
+  document.getElementById('learning-path').innerHTML = pathHTML;
+}
+
+function renderQuickDimensionBars(r) {
+  const ds = r._dimScores || {};
+  const dt = r._dimTotals || {};
+  const dims = Object.keys(ds);
+  return dims.map(d => {
+    const correct = ds[d] || 0;
+    const total = dt[d] || 1;
+    const pct = Math.round((correct / total) * 100);
+    let color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    return `
+      <div class="dim-row">
+        <div class="dim-name">${d}</div>
+        <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+        <div class="dim-score" style="color:${color};">${correct}/${total}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderDeepDimensionBars(r) {
+  const scores = r.scores || {};
+  const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+  return dims.map(d => {
+    const s = scores[d] || 0;
+    let color = s >= 8 ? 'var(--green)' : s >= 6 ? 'var(--amber)' : s >= 4 ? 'var(--coral)' : 'var(--red)';
+    return `
+      <div class="dim-row">
+        <div class="dim-name">${d}</div>
+        <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${s*10}%;background:${color};"></div></div>
+        <div class="dim-score" style="color:${color};">${s}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderQuickRadar(r) {
+  const ctx = document.getElementById('radar-chart').getContext('2d');
+  if (window._radarChart) window._radarChart.destroy();
+
+  const ds = r._dimScores || {};
+  const dt = r._dimTotals || {};
+  const labels = Object.keys(ds);
+  const userData = labels.map(d => {
+    const correct = ds[d] || 0;
+    const total = dt[d] || 1;
+    return Math.round((correct / total) * 10);
+  });
+
+  window._radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
+        { label: '普通投资者', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '巴菲特级', data: labels.map(() => 10), borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'var(--font)', size: 10 }, usePointStyle: true, padding: 14 } } },
+      scales: { r: { beginAtZero: true, max: 10, min: 0, ticks: { stepSize: 2, display: false }, pointLabels: { font: { family: 'var(--font)', size: 10, weight: '500' } }, grid: { color: '#e6dfd8' }, angleLines: { color: '#e6dfd8' } } }
+    }
+  });
+}
+
+function renderDeepRadar(scores) {
+  const ctx = document.getElementById('radar-chart').getContext('2d');
+  if (window._radarChart) window._radarChart.destroy();
+
+  const labels = ['商业模式','竞争优势','财务/经营','管理层','行业/风险','自我诚实'];
+  const userData = [
+    scores['商业模式理解']||0, scores['竞争优势判断']||0, scores['财务/经营理解']||0,
+    scores['管理层判断']||0, scores['行业/风险认知']||0, scores['自我认知诚实度']||0
+  ];
+
+  window._radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
+        { label: '普通投资者', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '巴菲特级', data: [10,10,10,10,10,10], borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'var(--font)', size: 10 }, usePointStyle: true, padding: 14 } } },
+      scales: { r: { beginAtZero: true, max: 10, min: 0, ticks: { stepSize: 2, display: false }, pointLabels: { font: { family: 'var(--font)', size: 10, weight: '500' } }, grid: { color: '#e6dfd8' }, angleLines: { color: '#e6dfd8' } } }
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════
 // TIP CAROUSEL
 // ═══════════════════════════════════════
 const LOADING_TIPS_Q = [
