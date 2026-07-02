@@ -1117,13 +1117,28 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     callDeepSeek([
       { role: 'system', content: reviewPrompt },
       { role: 'user', content: '逐题详情：\n' + mcqDetail }
-    ], 0.5, 2000).then(function(rc) {
+    ], 0.5, 3500).then(function(rc) {
       var rj = rc.match(/\{[\s\S]*\}/);
       if (rj) {
         try {
           var rd = JSON.parse(rj[0]);
           state.results.mcq_review = rd.mcq_review || [];
-        } catch(e) { console.error('Review parse:', e); }
+        } catch(e) {
+          // JSON truncated — try to repair
+          var raw = rj[0];
+          var lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
+          if (lastComplete > 0) {
+            raw = raw.substring(0, lastComplete + 1);
+            // Close any unclosed array
+            var openArr = (raw.match(/\[/g) || []).length;
+            var closeArr = (raw.match(/\]/g) || []).length;
+            while (closeArr < openArr) { raw += ']'; closeArr++; }
+            var openObj = (raw.match(/\{/g) || []).length;
+            var closeObj = (raw.match(/\}/g) || []).length;
+            while (closeObj < openObj) { raw += '}'; closeObj++; }
+            try { var rd2 = JSON.parse(raw); state.results.mcq_review = rd2.mcq_review || []; } catch(e2) { console.error('Review repair failed:', e2); }
+          }
+        }
       }
       appendDetailResults();
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
@@ -1134,7 +1149,7 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     callDeepSeek([
       { role: 'system', content: mlPrompt },
       { role: 'user', content: '公司：' + state.company + '。用户需要针对这家公司建立能力圈的学习建议。' }
-    ], 0.5, 2000).then(function(mc) {
+    ], 0.5, 3000).then(function(mc) {
       var mj = mc.match(/\{[\s\S]*\}/);
       if (mj) {
         try {
@@ -1142,7 +1157,20 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
           state.results.master_comparisons = md.master_comparisons || [];
           state.results.learning_path = md.learning_path || [];
           state.results._detailReady = true;
-        } catch(e) { console.error('ML parse:', e); }
+        } catch(e) {
+          var raw2 = mj[0];
+          var lc2 = Math.max(raw2.lastIndexOf('}'), raw2.lastIndexOf(']'));
+          if (lc2 > 0) {
+            raw2 = raw2.substring(0, lc2 + 1);
+            var oa = (raw2.match(/\[/g) || []).length;
+            var ca = (raw2.match(/\]/g) || []).length;
+            while (ca < oa) { raw2 += ']'; ca++; }
+            var oo = (raw2.match(/\{/g) || []).length;
+            var co = (raw2.match(/\}/g) || []).length;
+            while (co < oo) { raw2 += '}'; co++; }
+            try { var md2 = JSON.parse(raw2); state.results.master_comparisons = md2.master_comparisons || []; state.results.learning_path = md2.learning_path || []; state.results._detailReady = true; } catch(e2) { console.error('ML repair failed:', e2); }
+          }
+        }
       }
       appendDetailResults();
     }).catch(function(e) { console.error('ML failed:', e); appendDetailResults(); });
