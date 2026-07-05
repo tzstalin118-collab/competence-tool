@@ -758,8 +758,6 @@ async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
     });
     clearTimeout(timeoutId);
 
-    clearTimeout(timeoutId);
-
     if (!resp.ok) {
       const err = await resp.text();
       throw new Error('API 错误 (' + resp.status + '): ' + err.slice(0, 300));
