@@ -768,9 +768,9 @@ async function startDiagnosis() {
 
   try {
     // Step 0: Validate company name
-    var vp = '严格判断"' + company + '"是不是真实上市公司。编造的、拼错的、不存在的、非上市私企都返回valid:false并给3个最接近的上市公司建议。明确上市公司才返回valid:true。只返回JSON。';
+    var vp = '判断"' + company + '"是不是真实上市公司（覆盖美股、港股、A股等全球市场）。支持中英文名和常见简称。非上市公司（如SpaceX、字节跳动）返回valid:false并给最接近的上市公司建议。上市公司返回valid:true和股票代码。只返回JSON。';
     var vc = await callDeepSeek([
-      { role: 'system', content: '你是严格的上市公司验证员。对不存在的公司返回valid:false。只返回JSON。' },
+      { role: 'system', content: '你是全球上市公司验证员。对不存在的公司返回valid:false。只返回JSON。' },
       { role: 'user', content: vp }
     ], 0.1, 200);
     var vj = vc.match(/\{[\s\S]*\}/);
