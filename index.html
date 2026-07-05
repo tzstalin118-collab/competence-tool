@@ -418,7 +418,7 @@ body {
 
   <!-- ═══════ HEADER ═══════ -->
   <div class="app-header">
-    <div class="badge"><span class="badge-dot"></span>商业认知 · 能力圈诊断</div>
+    <div class="badge"><span class="badge-dot"></span>价值投资 · 能力圈诊断</div>
     <h1>你真的懂这家公司吗？</h1>
     <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题快速诊断 + 可选深度简答</p>
   </div>
@@ -1144,7 +1144,7 @@ async function submitDiagnosis() {
     var correctRate = mcqTotal > 0 ? Math.round(mcqCorrect/mcqTotal*100) : 0;
 
     // Phase 1: Core — fast
-    const corePrompt = `你是商业分析能力圈评估专家。基于巴菲特、芒格、段永平的框架。
+    const corePrompt = `你是价值投资能力圈评估专家。基于巴菲特、芒格、段永平的框架。
 
 ${KNOWLEDGE_BASE}
 
@@ -1190,7 +1190,7 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     showScreen('screen-results');
 
     // Phase 2a: MCQ review — background (small, fast)
-    var reviewPrompt = '你是商业分析评估专家。为以下' + state.mcqs.length + '道选择题逐题写explanation：正确答案为什么对，如果用户答错错在哪里。让用户心服口服。\n严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
+    var reviewPrompt = '你是价值投资评估专家。为以下' + state.mcqs.length + '道选择题逐题写explanation：正确答案为什么对，如果用户答错错在哪里。让用户心服口服。\n严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
 
     callDeepSeek([
       { role: 'system', content: reviewPrompt },
@@ -1212,7 +1212,7 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是商业分析专家。\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
+    var mlPrompt = '你是价值投资专家。\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
@@ -1284,7 +1284,7 @@ function appendDetailResults() {
       '<div class="master-lesson"><strong>🧠 学到的：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
     finishDetailSection('loader-master',
-      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 商业大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
   }
 
   // 2. 逐题解析
@@ -1404,7 +1404,7 @@ function renderResults() {
     return '<div id="' + id + '" class="collapsible-loading" style="border:1px solid var(--hairline);border-radius:10px;margin-bottom:8px;"><span>' + label + '</span><div class="detail-progress-track"><div id="' + id + '-bar" class="detail-progress-fill"></div></div></div>';
   };
   document.getElementById('detail-sections').innerHTML =
-    makeLoader('loader-master', '🎯 商业大师怎么看') +
+    makeLoader('loader-master', '🎯 投资大师怎么看') +
     makeLoader('loader-mcq', '📋 逐题解析') +
     makeLoader('loader-learning', '📖 学习路径');
 
@@ -1479,7 +1479,7 @@ function renderQuickRadar(r) {
       labels: labels,
       datasets: [
         { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
-        { label: '普通从业者', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '普通投资者', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
         { label: '巴菲特级', data: labels.map(() => 10), borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
       ]
     },
@@ -1508,7 +1508,7 @@ function renderDeepRadar(scores) {
       labels: labels,
       datasets: [
         { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
-        { label: '普通从业者', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '普通投资者', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
         { label: '巴菲特级', data: [10,10,10,10,10,10], borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
       ]
     },
