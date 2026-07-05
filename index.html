@@ -732,7 +732,7 @@ async function startDiagnosis() {
   state.openEnded = [];
   state.currentQ = 0;
   state.results = null;
-  state.totalMCQ = 0;
+  state.totalMCQ = 15; // Fixed: show 15 from the start
   state._batch2Ready = false;
   state._batch3Ready = false;
 
@@ -768,7 +768,6 @@ async function startDiagnosis() {
     const batch1Result = await generateBatch(1, 5,
       '商业模式理解(2题)、竞争优势判断(2题)、财务/经营理解(1题)', false);
     state.mcqs = batch1Result.mcqs;
-    state.totalMCQ = batch1Result.mcqs.length;
     state.currentQ = 0;
 
     renderProgress();
@@ -779,14 +778,14 @@ async function startDiagnosis() {
     generateBatch(2, 5,
       '财务/经营理解(2题)、管理层判断(2题)、行业/风险认知(1题)', false
     ).then(function(r) {
-      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.totalMCQ = state.mcqs.length; state._batch2Ready = true; renderProgress(); renderQuestion(); }
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state._batch2Ready = true; renderProgress(); renderQuestion(); }
     }).catch(function(e) { console.error('B2:', e); state._batch2Ready = true; renderQuestion(); });
 
     // Batch 3: last 5 MCQs + 3 open-ended in background
     generateBatch(3, 5,
       '行业/风险认知(1题)、自我认知诚实度(2题)、商业模式理解(1题)、竞争优势判断(1题)', true
     ).then(function(r) {
-      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.openEnded = r.open_ended || []; state.totalMCQ = state.mcqs.length; state._batch3Ready = true; renderProgress(); renderQuestion(); }
+      if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.openEnded = r.open_ended || []; state._batch3Ready = true; renderProgress(); renderQuestion(); }
     }).catch(function(e) { console.error('B3:', e); state._batch3Ready = true; renderQuestion(); });
 
   } catch (err) {
