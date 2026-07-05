@@ -564,33 +564,9 @@ body {
 
 <script>
 // ═══════════════════════════════════════
-// CloudBase SDK — load from multiple CDN fallbacks
-// ═══════════════════════════════════════
-(function loadSDK(urls, idx) {
-  if (idx >= urls.length) {
-    window._sdkFailed = true;
-    return;
-  }
-  var s = document.createElement('script');
-  s.src = urls[idx];
-  s.onload = function() { window._sdkLoaded = true; };
-  s.onerror = function() { loadSDK(urls, idx + 1); };
-  document.head.appendChild(s);
-})([
-  'https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.0/cloudbase.full.js',
-  'https://static.cloudbase.net/cloudbase-js-sdk/1.7.0/cloudbase.full.js'
-], 0);
-
-// Wait for SDK then init
-function initCloudBase() {
-  if (window._sdkLoaded && typeof cloudbase !== 'undefined') {
-    window._app = cloudbase.init({ env: 'zhendongle-d0ggwk5ng35ab9858' });
-  }
-}
-
-// ═══════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════
+const PROXY_URL = '/api/proxy';
 const MODEL = 'deepseek-chat';
 
 // ═══════════════════════════════════════
@@ -689,42 +665,24 @@ function selectMode(mode) {
 // API CALLS
 // ═══════════════════════════════════════
 async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
-  // Initialize SDK if needed
-  if (!window._app && !window._sdkFailed) {
-    initCloudBase();
-    // Wait up to 5 seconds for SDK to load
-    var waited = 0;
-    while (!window._app && !window._sdkFailed && waited < 50) {
-      await new Promise(function(r) { setTimeout(r, 100); });
-      waited++;
-    }
-  }
-
-  if (window._sdkFailed || !window._app) {
-    throw new Error('CloudBase SDK 加载失败，请刷新页面后重试');
-  }
-
-  // Anonymous login (lazy, cached after first call)
-  if (!callDeepSeek._authed) {
-    await window._app.auth().anonymousAuthProvider().signIn();
-    callDeepSeek._authed = true;
-  }
-
-  var result = await window._app.callFunction({
-    name: 'proxy',
-    data: {
+  const resp = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       model: MODEL,
       messages: messages,
       temperature: temperature,
       max_tokens: maxTokens
-    }
+    })
   });
 
-  if (result.result && result.result.error) {
-    throw new Error('API 错误: ' + JSON.stringify(result.result.error));
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error('API 错误 (' + resp.status + '): ' + err.slice(0, 300));
   }
 
-  return result.result.choices[0].message.content;
+  const data = await resp.json();
+  return data.choices[0].message.content;
 }
 
 // ═══════════════════════════════════════
@@ -1146,11 +1104,34 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     const coreContent = await callDeepSeek([
       { role: 'system', content: corePrompt },
       { role: 'user', content: userPrompt }
-    ], 0.4, 1500);
+    ], 0.4, 2500);
 
     const coreJson = coreContent.match(/\{[\s\S]*\}/);
     if (!coreJson) throw new Error('核心评估返回格式异常');
-    const coreResult = JSON.parse(coreJson[0]);
+
+    var coreResult;
+    try {
+      coreResult = JSON.parse(coreJson[0]);
+    } catch(e) {
+      // JSON truncated or malformed — try to repair
+      var raw = coreJson[0];
+      var lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
+      if (lastComplete > 0) {
+        raw = raw.substring(0, lastComplete + 1);
+        raw = raw.replace(/,(\s*[}\]])/g, '$1'); // strip trailing commas
+        var oa = (raw.match(/\{/g) || []).length;
+        var ca = (raw.match(/\}/g) || []).length;
+        while (ca < oa) { raw += '}'; ca++; }
+        var oas = (raw.match(/\[/g) || []).length;
+        var cas = (raw.match(/\]/g) || []).length;
+        while (cas < oas) { raw += ']'; cas++; }
+        try { coreResult = JSON.parse(raw); } catch(e2) {
+          throw new Error('AI 返回内容格式异常，请重试。' + e2.message.slice(0, 50));
+        }
+      } else {
+        throw new Error('AI 返回内容格式异常，请重试');
+      }
+    }
 
     state.results = coreResult;
     state.results.mcqScore = mcqScore;
