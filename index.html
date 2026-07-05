@@ -863,6 +863,7 @@ ${dimensions}
 
 ## 出题原则
 - 题目必须针对"${state.company}"，不能是通用题
+- 出题前去重：如果多个题目考察同一个知识点（同一指标、同一壁垒、同一事件），只保留1题。确保15道题覆盖15个不同知识点，无重复题
 - 题干精简，每题不超过40字。选项同理，每个选项不超过20字
 - 每题4选项单选，只有一个正确答案，错误选项要有迷惑性
 - 考"理解"而非"数据记忆"
@@ -1238,7 +1239,7 @@ ${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是价值投资专家。基于巴菲特、芒格、段永平、李录的已知投资哲学和公开言论，推演他们如何看待"' + state.company + '"这家公司——他们会投还是会避开？理由是什么？（注意：是哲学推演，不是事实陈述。用"可能""倾向于""大概率会"这类措辞，不要编造不存在的投资事件。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), verdict(会投/会避开/不确定), reasoning(2-3句推理), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
+    var mlPrompt = '你是价值投资专家。基于巴菲特和芒格的已知投资哲学和公开言论，推演他们如何看待"' + state.company + '"这家公司——他们会投还是会避开？理由是什么？（注意：是哲学推演，用"可能""倾向于""大概率会"这类措辞，不要编造不存在的投资事件。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), verdict(会投/会避开/不确定), reasoning(2-3句推理), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
