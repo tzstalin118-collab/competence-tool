@@ -418,7 +418,7 @@ body {
 <div class="app">
 
   <!-- ═══════ HEADER ═══════ -->
-  <div class="app-header">
+  <div class="app-header" id="app-header">
     <div class="badge"><span class="badge-dot"></span>价值投资 · 能力圈诊断</div>
     <h1>你真的懂这家公司吗？</h1>
     <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题快速诊断 + 可选深度简答</p>
@@ -666,6 +666,9 @@ function showScreen(id) {
       const el = document.getElementById(s);
       if (el) el.style.display = (s === id) ? '' : 'none';
     });
+  // Only show header on input screen
+  var header = document.getElementById('app-header');
+  if (header) header.style.display = (id === 'screen-input') ? '' : 'none';
 }
 
 function showError(title, detail) {
@@ -860,6 +863,7 @@ ${dimensions}
 
 ## 出题原则
 - 题目必须针对"${state.company}"，不能是通用题
+- 题干精简，每题不超过40字。选项同理，每个选项不超过20字
 - 每题4选项单选，只有一个正确答案，错误选项要有迷惑性
 - 考"理解"而非"数据记忆"
 - 同维度题目层层递进：基础→深层→极限
