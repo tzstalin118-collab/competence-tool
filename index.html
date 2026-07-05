@@ -432,6 +432,7 @@ body {
       <div class="input-group">
         <label>你要诊断哪家公司？</label>
         <input type="text" id="company-name" placeholder="例如：茅台、特斯拉、英伟达、腾讯……" autofocus>
+        <div id="company-error-msg"></div>
       </div>
       <div class="input-group">
         <label>简单说说你为什么觉得自己懂这家公司（选填）</label>
@@ -891,28 +892,37 @@ function allBatchesReady() {
 function showCompanyError(name, suggestions) {
   showScreen('screen-input');
   document.getElementById('btn-start').disabled = false;
-  document.getElementById('company-name').value = '';
   document.getElementById('company-name').focus();
 
-  var existing = document.getElementById('company-error-msg');
-  if (existing) existing.remove();
-  var errDiv = document.createElement('div');
-  errDiv.id = 'company-error-msg';
-  errDiv.style.cssText = 'margin-top:16px;padding:16px;background:var(--red-bg);border:1px solid #f9d8d8;border-radius:10px;text-align:center;';
-  var sugHTML = '';
-  if (suggestions && suggestions.length > 0) {
-    sugHTML = '<p style="color:var(--muted);font-size:13px;margin-bottom:10px;">你是不是想输入：</p>' +
-      suggestions.map(function(s) {
-        return '<button class="btn btn-outline btn-small" style="margin:3px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '&#39;') + '\';document.getElementById(\'company-error-msg\').remove();">' + s + '</button>';
-      }).join(' ') +
-      '<p style="margin-top:8px;font-size:12px;color:var(--soft);">点击上方按钮自动填入，或手动重新输入</p>';
-  } else {
-    sugHTML = '<p style="color:var(--muted);font-size:13px;margin-top:6px;">请确认公司名称是否正确，或输入其他上市公司</p>';
+  // Local fuzzy match for common misspellings
+  var LOCAL = ['茅台','贵州茅台','特斯拉','苹果','Apple','腾讯','腾讯控股','英伟达','NVIDIA','比亚迪','阿里巴巴','拼多多','美团','小米','网易','京东','百度','谷歌','微软','亚马逊','Meta','台积电','宁德时代','五粮液','泸州老窖','泡泡玛特','理想汽车','小鹏汽车','蔚来','华为','字节跳动','SpaceX'];
+  var localMatches = [];
+  if (!suggestions || suggestions.length === 0) {
+    var input = name.toLowerCase().replace(/\s+/g,'');
+    LOCAL.forEach(function(c) {
+      var cLower = c.toLowerCase().replace(/\s+/g,'');
+      // Simple edit distance check: first char match + length similarity
+      if (cLower.indexOf(input) >= 0 || input.indexOf(cLower) >= 0 || 
+          (Math.abs(cLower.length - input.length) <= 2 && cLower[0] === input[0])) {
+        if (localMatches.length < 5) localMatches.push(c);
+      }
+    });
   }
-  errDiv.innerHTML = '<div style="font-size:24px;margin-bottom:6px;">🤔</div>' +
-    '<p style="color:var(--red);font-size:14px;font-weight:600;margin-bottom:4px;">"' + name + '" 无法识别为上市公司</p>' +
-    sugHTML;
-  document.getElementById('screen-input').querySelector('.card-body').appendChild(errDiv);
+  var finalSuggestions = (suggestions && suggestions.length > 0) ? suggestions : localMatches;
+
+  var errDiv = document.getElementById('company-error-msg');
+  var html = '<div style="margin-top:8px;padding:10px 14px;background:var(--red-bg);border:1px solid #f9d8d8;border-radius:8px;">' +
+    '<p style="color:var(--red);font-size:13px;font-weight:600;margin-bottom:4px;">"' + name + '" 无法识别为上市公司</p>';
+  if (finalSuggestions.length > 0) {
+    html += '<p style="color:var(--muted);font-size:12px;margin-bottom:6px;">你是不是想输入：</p>' +
+      finalSuggestions.map(function(s) {
+        return '<button class="btn btn-outline btn-small" style="margin:2px 4px 2px 0;width:auto;display:inline-block;font-size:12px;padding:4px 12px;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '&#39;') + '\';document.getElementById(\'company-error-msg\').innerHTML=\'\';">' + s + '</button>';
+      }).join('');
+  } else {
+    html += '<p style="color:var(--muted);font-size:12px;">请确认公司名称是否正确，或输入其他上市公司</p>';
+  }
+  html += '</div>';
+  errDiv.innerHTML = html;
 }
 
 // Generate a batch of questions
