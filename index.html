@@ -1250,7 +1250,7 @@ ${KNOWLEDGE_BASE}
 ## 评估"${state.company}"，模式：${modeInfo}，正确率：${mcqCorrect}/${mcqTotal}（${correctRate}%）
 
 ## 只输出以下字段，不要逐题解析、不要大师对标、不要学习路径：
-${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5},"overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
+${state.mode === 'quick' ? '{"key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5},"key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
 严格JSON，无markdown包裹。`;
 
     const userPrompt = '公司：' + state.company + '\n模式：' + state.mode + '\n\n选择题结果\n' + mcqAnalysis + '\n\n逐题详情\n' + mcqDetail + '\n\n' + (hasOpenEnded ? '简答题\n' + oeText : '简答题：未作答');
@@ -1439,7 +1439,6 @@ function renderResults() {
     '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
 
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
-  document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
 
   // Three-takeaway: computed from dimension scores (no AI)
   var ds = r._dimScores || {};
