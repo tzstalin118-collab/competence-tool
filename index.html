@@ -656,7 +656,17 @@ var DIM_MAP = {
 function normalizeDim(raw) {
   if (!raw) return '商业模式理解';
   var key = raw.replace(/\s+/g, '').replace(/[/／]/g, '/');
-  return DIM_MAP[key] || DIM_MAP[Object.keys(DIM_MAP).find(function(k) { return key.indexOf(k) >= 0 || k.indexOf(key) >= 0; })] || raw;
+  // Direct match
+  if (DIM_MAP[key]) return DIM_MAP[key];
+  // Fuzzy match: check if any known key is contained
+  var keys = Object.keys(DIM_MAP);
+  for (var i = 0; i < keys.length; i++) {
+    if (key.indexOf(keys[i]) >= 0 || keys[i].indexOf(key) >= 0) {
+      return DIM_MAP[keys[i]];
+    }
+  }
+  console.warn('Unrecognized dimension:', raw, '→ kept as-is');
+  return raw;
 }
 
 function repairJSON(rawStr) {
