@@ -437,6 +437,19 @@ body {
         <div class="hint">写了会让问题更有针对性，不写也行。</div>
       </div>
 
+      <div style="margin-bottom:18px;">
+        <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">你的状态</label>
+        <div style="display:flex;gap:10px;">
+          <button type="button" id="btn-holding" class="btn btn-outline btn-small" onclick="setOwnership('holding')" style="flex:1;">📈 我已持有</button>
+          <button type="button" id="btn-researching" class="btn btn-outline btn-small" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
+        </div>
+        <div id="anxiety-row" style="display:none;margin-top:12px;">
+          <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;display:block;">焦虑程度：<span id="anxiety-label">5</span></label>
+          <input type="range" id="anxiety-slider" min="1" max="10" value="5" oninput="document.getElementById('anxiety-label').textContent=this.value" style="width:100%;accent-color:var(--coral);">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--soft);"><span>完全不焦虑</span><span>非常焦虑</span></div>
+        </div>
+      </div>
+
       <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">诊断模式</label>
       <div class="mode-cards">
         <div class="mode-card selected" id="mode-quick" onclick="selectMode('quick')">
@@ -548,6 +561,8 @@ body {
       <div class="insight-box insight-detail" id="insight-detail"></div>
 
       <div id="detail-sections"></div>
+
+      <div id="calming-wisdom"></div>
 
       <div id="critical-question"></div>
 
@@ -701,6 +716,17 @@ function selectMode(mode) {
   document.getElementById('mode-deep').classList.toggle('selected', mode === 'deep');
 }
 
+function setOwnership(type) {
+  state.ownership = type;
+  document.getElementById('btn-holding').classList.toggle('selected', type === 'holding');
+  document.getElementById('btn-researching').classList.toggle('selected', type === 'researching');
+  document.getElementById('anxiety-row').style.display = (type === 'holding') ? '' : 'none';
+}
+function getAnxiety() {
+  var slider = document.getElementById('anxiety-slider');
+  return slider ? parseInt(slider.value) : 5;
+}
+
 function quickStart(company) {
   if (!company) return;
   document.getElementById('company-name').value = company;
@@ -753,6 +779,8 @@ async function startDiagnosis() {
 
   state.company = company;
   state.claim = document.getElementById('user-claim').value.trim();
+  state.ownership = state.ownership || 'researching';
+  state.anxiety = state.ownership === 'holding' ? getAnxiety() : 0;
   state.mcqs = [];
   state.openEnded = [];
   state.currentQ = 0;
@@ -1422,6 +1450,37 @@ function renderResults() {
     }).join('');
     document.getElementById('insight-detail').innerHTML = detailHTML;
   }
+
+  // ── Calming wisdom (from value investing masters) ──
+  var anxiety = state.anxiety || 0;
+  var quotes = [];
+  if (anxiety >= 7) {
+    quotes = [
+      '巴菲特说："股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以选择不理他。"',
+      '巴菲特在1999年互联网泡沫中跑输标普20个点，被《时代》周刊嘲笑——两年后泡沫破灭，他成了唯一站着的人。',
+      '段永平："安全边际不是抄底，是你知道这个东西值一块钱，用五毛钱买。不知道值不值，一毛钱也是贵的。"'
+    ];
+  } else if (isQuick ? ((r.mcqCorrect/r.mcqTotal||0) >= 0.6) : ((Object.values(r.scores||{}).reduce(function(a,b){return a+b;},0)/Math.max(1,Object.keys(r.scores||{}).length)) >= 6)) {
+    quotes = [
+      '段永平投资网易赚了100多倍，但他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
+      '巴菲特："我们不是靠预测市场赚钱的，是靠理解企业赚钱的。"'
+    ];
+  } else {
+    quotes = [
+      '芒格说过："我们不是靠解决难题成功的，是靠避开难题成功的。"',
+      '巴菲特："投资最重要的不是你对了多少次，而是你对的时候赚了多少。"',
+      '李录说："真正的能力圈不是你知道什么，是你知道自己不知道什么。"',
+      '段永平："投资是一场你可以自己选题目的考试。不碰不懂的题，正确率天然就高。"'
+    ];
+  }
+  var pick = quotes[Math.floor(Math.random() * quotes.length)];
+  if (state.ownership === 'holding' && anxiety >= 5) {
+    pick = quotes[0]; // Always show calming quote for anxious holders
+  }
+  document.getElementById('calming-wisdom').innerHTML =
+    '<div style="margin-top:14px;padding:14px 16px;background:var(--amber-bg);border:1px solid #f0d78c;border-radius:10px;text-align:center;">' +
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:6px;">🧘 大师说</div>' +
+    '<div style="font-size:13px;color:#8b6914;line-height:1.6;">' + pick + '</div></div>';
 
   // ── Loading placeholders with tracked progress bars ──
   state._detailTimers = {};
