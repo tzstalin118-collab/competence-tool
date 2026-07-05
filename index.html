@@ -299,6 +299,7 @@ body {
 
 /* ═══════════ FOOTER ACTIONS ═══════════ */
 .footer-actions { text-align: center; margin-top: 24px; }
+.footer-actions span:hover { border-color: var(--coral) !important; background: #fefbf9 !important; }
 
 /* ═══════════ ERROR ═══════════ */
 .alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
@@ -465,10 +466,13 @@ body {
     <div class="card-body">
       <div class="loading-state">
         <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-q-title">AI 正在生成诊断题目……</div>
+        <div class="loading-text" id="loading-q-title">AI 正在为你诊断……</div>
         <div class="loading-sub" id="loading-company-label"></div>
-        <div style="margin-top:18px;width:200px;height:3px;background:var(--hairline);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
-          <div id="loading-q-progress" style="height:100%;width:0%;background:var(--coral);border-radius:2px;transition:width 0.3s;"></div>
+        <div id="loading-steps" style="text-align:left;max-width:280px;margin:16px auto 0;font-size:13px;color:var(--muted);line-height:2.2;">
+          <div id="ls-0">⏳ 识别公司信息</div>
+          <div id="ls-1">⏳ 分析商业模式</div>
+          <div id="ls-2">⏳ 准备诊断题目</div>
+          <div id="ls-3" style="opacity:0.4;">⏳ 生成追问简答</div>
         </div>
         <div class="tip-carousel">
           <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--soft);text-transform:uppercase;margin-bottom:8px;">💬 你可能想知道</div>
@@ -535,6 +539,8 @@ body {
         <div class="result-mode-badge" id="result-mode-badge"></div>
       </div>
 
+      <div id="takeaway"></div>
+
       <div class="radar-container"><canvas id="radar-chart"></canvas></div>
       <div class="dimension-scores" id="dimension-scores"></div>
 
@@ -546,7 +552,18 @@ body {
       <div id="critical-question"></div>
 
       <div class="footer-actions">
-        <button class="btn btn-outline btn-small" onclick="resetApp()">再测一家公司 →</button>
+        <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:10px;">再测一家热门公司</div>
+        <div id="hot-tags" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px;">
+          <span onclick="quickStart('茅台')" style="cursor:pointer;padding:6px 14px;background:var(--canvas);border:1px solid var(--hairline);border-radius:20px;font-size:13px;transition:all 0.15s;">茅台</span>
+          <span onclick="quickStart('特斯拉')" style="cursor:pointer;padding:6px 14px;background:var(--canvas);border:1px solid var(--hairline);border-radius:20px;font-size:13px;transition:all 0.15s;">特斯拉</span>
+          <span onclick="quickStart('腾讯')" style="cursor:pointer;padding:6px 14px;background:var(--canvas);border:1px solid var(--hairline);border-radius:20px;font-size:13px;transition:all 0.15s;">腾讯</span>
+          <span onclick="quickStart('英伟达')" style="cursor:pointer;padding:6px 14px;background:var(--canvas);border:1px solid var(--hairline);border-radius:20px;font-size:13px;transition:all 0.15s;">英伟达</span>
+          <span onclick="quickStart('比亚迪')" style="cursor:pointer;padding:6px 14px;background:var(--canvas);border:1px solid var(--hairline);border-radius:20px;font-size:13px;transition:all 0.15s;">比亚迪</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="retry-company" type="text" placeholder="或输入其他公司……" style="flex:1;padding:10px 14px;border:1px solid var(--hairline);border-radius:10px;font-size:14px;font-family:var(--font);">
+          <button class="btn btn-primary btn-small" onclick="quickStart(document.getElementById('retry-company').value.trim())" style="flex-shrink:0;">开始 →</button>
+        </div>
       </div>
     </div>
   </div>
@@ -680,6 +697,12 @@ function selectMode(mode) {
   state.mode = mode;
   document.getElementById('mode-quick').classList.toggle('selected', mode === 'quick');
   document.getElementById('mode-deep').classList.toggle('selected', mode === 'deep');
+}
+
+function quickStart(company) {
+  if (!company) return;
+  document.getElementById('company-name').value = company;
+  startDiagnosis();
 }
 
 // ═══════════════════════════════════════
@@ -1343,6 +1366,20 @@ function renderResults() {
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
   document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
 
+  // Three-takeaway: computed from dimension scores (no AI)
+  var ds = r._dimScores || {};
+  var dt = r._dimTotals || {};
+  var dims = Object.keys(ds);
+  if (dims.length > 0) {
+    var best = dims.reduce(function(a,b) { return (ds[a]/dt[a]||0) > (ds[b]/dt[b]||0) ? a : b; });
+    var worst = dims.reduce(function(a,b) { return (ds[a]/dt[a]||1) < (ds[b]/dt[b]||1) ? a : b; });
+    document.getElementById('takeaway').innerHTML =
+      '<div style="margin-top:14px;padding:12px 16px;background:var(--green-bg);border-radius:8px;font-size:13px;line-height:1.7;">' +
+      '<div>✅ <strong>你最懂：</strong>' + best + '</div>' +
+      '<div>⚠️ <strong>最大盲区：</strong>' + worst + '</div>' +
+      '<div>💡 <strong>建议：</strong>' + (r.key_insight || '针对薄弱维度加强学习') + '</div></div>';
+  }
+
   const modeBadge = document.getElementById('result-mode-badge');
   modeBadge.textContent = isQuick ? '⚡ 快速诊断（仅选择题）' : '🔬 深度诊断';
   modeBadge.style.background = isQuick ? 'var(--card)' : 'var(--amber-bg)';
@@ -1579,8 +1616,34 @@ showScreen = function(id) {
   ['q','r'].forEach(t => _stopCarouselTimer(t));
   finishProgressAnimation('loading-progress-bar');
   finishProgressAnimation('loading-q-progress');
-  if (id === 'screen-loading-questions') { initCarousel('q'); startProgressAnimation('loading-q-progress'); }
+  if (id === 'screen-loading-questions') {
+    initCarousel('q');
+    // Animated step indicators
+    var steps = ['ls-0','ls-1','ls-2','ls-3'];
+    var isDeep = state.mode === 'deep';
+    ['ls-0','ls-1','ls-2','ls-3'].forEach(function(sid) { var el = document.getElementById(sid); if (el) el.innerHTML = el.innerHTML.replace('⏳','⏳'); });
+    var stepTimers = [];
+    [1200, 2800, 4500].forEach(function(delay, i) {
+      stepTimers.push(setTimeout(function() {
+        var el = document.getElementById('ls-' + i);
+        if (el) el.innerHTML = el.innerHTML.replace('⏳', i < 3 ? '✅' : '✅');
+      }, delay));
+    });
+    if (!isDeep) {
+      stepTimers.push(setTimeout(function() {
+        var el = document.getElementById('ls-3');
+        if (el) { el.innerHTML = '⏭️ 跳过追问（快速模式）'; el.style.opacity = '0.6'; }
+      }, 6000));
+    }
+    // Store for cleanup
+    state._stepTimers = stepTimers;
+  }
   if (id === 'screen-loading-results') { initCarousel('r'); startProgressAnimation('loading-progress-bar'); }
+  // Clean up step timers when leaving loading screen
+  if (state._stepTimers && id !== 'screen-loading-questions') {
+    state._stepTimers.forEach(function(t) { clearTimeout(t); });
+    state._stepTimers = null;
+  }
   _origShowScreen(id);
 };
 
