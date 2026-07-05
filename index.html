@@ -1376,30 +1376,31 @@ function renderResults() {
   const r = state.results;
   const isQuick = state.mode === 'quick';
 
-  // ── Fixed grade system (computed locally, not AI-generated) ──
-  var circleColor, displayScore, gradeLabel, gradeDesc;
+  // ── 百分制评分 (computed locally) ──
+  var circleColor, displayScore, gradeTag;
   if (isQuick) {
     var pct = r.mcqTotal > 0 ? Math.round((r.mcqCorrect / r.mcqTotal) * 100) : 0;
-    if (pct >= 80)      { circleColor = 'var(--green)'; gradeLabel = 'A 级'; gradeDesc = '深度理解'; }
-    else if (pct >= 60) { circleColor = 'var(--amber)'; gradeLabel = 'B 级'; gradeDesc = '基本看懂'; }
-    else if (pct >= 40) { circleColor = 'var(--coral)'; gradeLabel = 'C 级'; gradeDesc = '认知模糊'; }
-    else                { circleColor = 'var(--red)';   gradeLabel = 'D 级'; gradeDesc = '需要从头学'; }
-    displayScore = gradeLabel;
+    if (pct >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
+    else if (pct >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
+    else if (pct >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
+    else                { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
+    displayScore = pct;
   } else {
     var scores = r.scores || {};
     var vals = Object.values(scores);
     var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0) / vals.length) : 0;
-    if (avg >= 8)      { circleColor = 'var(--green)'; gradeLabel = '深度理解'; gradeDesc = '综合得分 ' + avg + '/10'; }
-    else if (avg >= 6) { circleColor = 'var(--amber)'; gradeLabel = '基本理解'; gradeDesc = '综合得分 ' + avg + '/10'; }
-    else if (avg >= 4) { circleColor = 'var(--coral)'; gradeLabel = '认知模糊'; gradeDesc = '综合得分 ' + avg + '/10'; }
-    else               { circleColor = 'var(--red)';   gradeLabel = '需要补课'; gradeDesc = '综合得分 ' + avg + '/10'; }
-    displayScore = avg + ' / 10';
+    var deepPct = avg * 10;
+    if (deepPct >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
+    else if (deepPct >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
+    else if (deepPct >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
+    else                    { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
+    displayScore = deepPct;
   }
 
-  // 方案B: 大字 + 小字
+  // 方案B: 大字数字 + 小字评语
   document.getElementById('score-grade').innerHTML =
-    '<div style="font-size:48px;font-weight:700;letter-spacing:-1px;line-height:1.1;color:' + circleColor + ';">' + displayScore + '</div>' +
-    '<div style="font-size:14px;font-weight:500;margin-top:4px;color:' + circleColor + ';">' + gradeLabel + ' · ' + gradeDesc + '</div>';
+    '<div style="font-size:56px;font-weight:700;letter-spacing:-1.5px;line-height:1;color:' + circleColor + ';">' + displayScore + '<span style="font-size:22px;font-weight:500;"> 分</span></div>' +
+    '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
 
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
   document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
