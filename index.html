@@ -830,7 +830,7 @@ async function startDiagnosis() {
     var vc = await callDeepSeek([
       { role: 'system', content: '你是全球上市公司验证员。对不存在的公司返回valid:false。只返回JSON。' },
       { role: 'user', content: vp }
-    ], 0.1, 200);
+    ], 0.1, 300);
     var vj = vc.match(/\{[\s\S]*\}/);
     if (vj) {
       var vr;
@@ -838,9 +838,15 @@ async function startDiagnosis() {
         var fixed = repairJSON(vj[0]);
         if (fixed) { try { vr = JSON.parse(fixed); } catch(e2) {} }
       }
-      if (!vr) { /* validation parse failed, proceed anyway */ } else
-      if (vr.valid === false && vr.suggestions && vr.suggestions.length > 0) {
-        showCompanyError(company, vr.suggestions);
+      if (vr && vr.valid === false) {
+        // Company not recognized — block with suggestions if available
+        var suggestions = (vr.suggestions && vr.suggestions.length > 0) ? vr.suggestions : [];
+        showCompanyError(company, suggestions);
+        return;
+      }
+      if (vr && vr.valid !== true) {
+        // Ambiguous response — block to be safe
+        showCompanyError(company, []);
         return;
       }
     }
@@ -888,19 +894,24 @@ function showCompanyError(name, suggestions) {
   document.getElementById('company-name').value = '';
   document.getElementById('company-name').focus();
 
-  // Show error message below the input
   var existing = document.getElementById('company-error-msg');
   if (existing) existing.remove();
   var errDiv = document.createElement('div');
   errDiv.id = 'company-error-msg';
   errDiv.style.cssText = 'margin-top:16px;padding:16px;background:var(--red-bg);border:1px solid #f9d8d8;border-radius:10px;text-align:center;';
+  var sugHTML = '';
+  if (suggestions && suggestions.length > 0) {
+    sugHTML = '<p style="color:var(--muted);font-size:13px;margin-bottom:10px;">你是不是想输入：</p>' +
+      suggestions.map(function(s) {
+        return '<button class="btn btn-outline btn-small" style="margin:3px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '&#39;') + '\';document.getElementById(\'company-error-msg\').remove();">' + s + '</button>';
+      }).join(' ') +
+      '<p style="margin-top:8px;font-size:12px;color:var(--soft);">点击上方按钮自动填入，或手动重新输入</p>';
+  } else {
+    sugHTML = '<p style="color:var(--muted);font-size:13px;margin-top:6px;">请确认公司名称是否正确，或输入其他上市公司</p>';
+  }
   errDiv.innerHTML = '<div style="font-size:24px;margin-bottom:6px;">🤔</div>' +
-    '<p style="color:var(--red);font-size:14px;font-weight:600;margin-bottom:4px;">"' + name + '" 似乎不是上市公司</p>' +
-    '<p style="color:var(--muted);font-size:13px;margin-bottom:10px;">你是不是想输入：</p>' +
-    suggestions.map(function(s) {
-      return '<button class="btn btn-outline btn-small" style="margin:3px;width:auto;display:inline-block;" onclick="document.getElementById(\'company-name\').value=\'' + s.replace(/'/g, '&#39;') + '\';document.getElementById(\'company-error-msg\').remove();">' + s + '</button>';
-    }).join(' ') +
-    '<p style="margin-top:8px;font-size:12px;color:var(--soft);">点击上方按钮自动填入，或手动重新输入</p>';
+    '<p style="color:var(--red);font-size:14px;font-weight:600;margin-bottom:4px;">"' + name + '" 无法识别为上市公司</p>' +
+    sugHTML;
   document.getElementById('screen-input').querySelector('.card-body').appendChild(errDiv);
 }
 
