@@ -606,6 +606,26 @@ const KNOWLEDGE_BASE = `
 `;
 
 // ═══════════════════════════════════════
+// JSON REPAIR UTILITY
+// ═══════════════════════════════════════
+function repairJSON(rawStr) {
+  // Find last complete bracket
+  var lastComplete = Math.max(rawStr.lastIndexOf('}'), rawStr.lastIndexOf(']'));
+  if (lastComplete <= 0) return null;
+  var raw = rawStr.substring(0, lastComplete + 1);
+  // Strip trailing commas (common AI mistake)
+  raw = raw.replace(/,(\s*[}\]])/g, '$1');
+  // Close unclosed brackets
+  var openArr = (raw.match(/\[/g) || []).length;
+  var closeArr = (raw.match(/\]/g) || []).length;
+  while (closeArr < openArr) { raw += ']'; closeArr++; }
+  var openObj = (raw.match(/\{/g) || []).length;
+  var closeObj = (raw.match(/\}/g) || []).length;
+  while (closeObj < openObj) { raw += '}'; closeObj++; }
+  return raw;
+}
+
+// ═══════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════
 let state = {
@@ -665,24 +685,37 @@ function selectMode(mode) {
 // API CALLS
 // ═══════════════════════════════════════
 async function callDeepSeek(messages, temperature = 0.7, maxTokens = 4000) {
-  const resp = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: messages,
-      temperature: temperature,
-      max_tokens: maxTokens
-    })
-  });
+  // Abort after 60s to avoid hanging
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 60000);
+  try {
+    const resp = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: messages,
+        temperature: temperature,
+        max_tokens: maxTokens
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error('API 错误 (' + resp.status + '): ' + err.slice(0, 300));
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error('API 错误 (' + resp.status + '): ' + err.slice(0, 300));
+    }
+
+    const data = await resp.json();
+    return data.choices[0].message.content;
+  } catch(e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') throw new Error('请求超时（60秒），请重试');
+    throw e;
   }
-
-  const data = await resp.json();
-  return data.choices[0].message.content;
 }
 
 // ═══════════════════════════════════════
@@ -715,7 +748,12 @@ async function startDiagnosis() {
     ], 0.1, 200);
     var vj = vc.match(/\{[\s\S]*\}/);
     if (vj) {
-      var vr = JSON.parse(vj[0]);
+      var vr;
+      try { vr = JSON.parse(vj[0]); } catch(e) {
+        var fixed = repairJSON(vj[0]);
+        if (fixed) { try { vr = JSON.parse(fixed); } catch(e2) {} }
+      }
+      if (!vr) { /* validation parse failed, proceed anyway */ } else
       if (vr.valid === false && vr.suggestions && vr.suggestions.length > 0) {
         showCompanyError(company, vr.suggestions);
         return;
@@ -824,23 +862,27 @@ ${dimensions}
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('AI 返回格式异常');
 
-  let parsed;
+  var parsed;
   try {
     parsed = JSON.parse(jsonMatch[0]);
   } catch (jsonErr) {
-    let raw = jsonMatch[0];
-    const lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
-    if (lastComplete > 0) raw = raw.substring(0, lastComplete + 1) + '\\n]}';
-    try { parsed = JSON.parse(raw); } catch (e) {
+    var fixed = repairJSON(jsonMatch[0]);
+    if (fixed) {
+      try { parsed = JSON.parse(fixed); } catch (e2) {
+        throw new Error('JSON 解析失败：' + jsonErr.message);
+      }
+    } else {
       throw new Error('JSON 解析失败：' + jsonErr.message);
     }
   }
 
   if (!parsed.mcqs || parsed.mcqs.length === 0) throw new Error('未生成有效题目');
 
-  const mcqs = parsed.mcqs.map(q => ({ ...q, userAnswer: null }));
-  const openEnded = (parsed.open_ended || []).map(q => ({ ...q, answer: '' }));
+  var totalGenerated = parsed.mcqs.length;
+  var mcqs = parsed.mcqs.filter(function(q) { return q.options && Array.isArray(q.options) && q.options.length === 4 && q.question && q.correct; }).map(q => ({ ...q, userAnswer: null }));
+  var openEnded = (parsed.open_ended || []).filter(function(q) { return q.question && q.dimension; }).map(q => ({ ...q, answer: '' }));
 
+  if (mcqs.length < totalGenerated) { console.warn('Batch ' + batchNum + ': dropped ' + (totalGenerated - mcqs.length) + ' bad questions'); }
   console.log('Batch ' + batchNum + ' done:', mcqs.length, 'MCQs,', openEnded.length, 'open-ended');
   return { mcqs, open_ended: openEnded };
 }
@@ -853,11 +895,15 @@ function totalQuestions() {
 }
 
 function getCurrentQuestion() {
-  if (state.currentQ < state.totalMCQ) {
+  if (state.currentQ < state.totalMCQ && state.currentQ < state.mcqs.length) {
     return { type: 'mcq', data: state.mcqs[state.currentQ], index: state.currentQ };
   } else {
     const oeIdx = state.currentQ - state.totalMCQ;
-    return { type: 'open', data: state.openEnded[oeIdx], index: oeIdx };
+    if (oeIdx >= 0 && oeIdx < state.openEnded.length) {
+      return { type: 'open', data: state.openEnded[oeIdx], index: oeIdx };
+    }
+    // Fallback: return first MCQ
+    return { type: 'mcq', data: state.mcqs[0] || {question:'数据异常',options:[],dimension:''}, index: 0 };
   }
 }
 
@@ -918,6 +964,12 @@ function renderMCQ(q) {
   const d = q.data;
   const container = document.getElementById('question-container');
 
+  // Defensive: skip corrupted questions
+  if (!d.options || !Array.isArray(d.options)) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);">⚠️ 这道题数据异常，请点"下一题"跳过</div>';
+    return;
+  }
+
   let optionsHTML = d.options.map((opt, i) => {
     const letter = String.fromCharCode(65 + i);
     const selected = d.userAnswer === letter;
@@ -949,7 +1001,7 @@ function renderOpenEnded(q) {
     <div class="question-number">简答题 ${q.index + 1} / ${state.openEnded.length}</div>
     <div class="question-dimension" style="background:var(--amber-bg);color:var(--amber);">${d.dimension}</div>
     <div class="question-text">${d.question}</div>
-    <div class="question-context">💡 ${d.context}</div>
+    ${d.context ? '<div class="question-context">💡 ' + d.context + '</div>' : ''}
     <div class="input-group" style="margin-top:14px;">
       <label>你的回答（可选，跳过不影响快速诊断结果）</label>
       <textarea id="answer-input" rows="4" placeholder="打字麻烦就跳过，点"跳过简答"继续……">${d.answer}</textarea>
@@ -963,7 +1015,9 @@ function renderOpenEnded(q) {
 }
 
 function selectMCQ(qIdx, letter) {
-  state.mcqs[qIdx].userAnswer = letter;
+  if (qIdx >= 0 && qIdx < state.mcqs.length) {
+    state.mcqs[qIdx].userAnswer = letter;
+  }
   renderQuestion();
 }
 
@@ -1013,9 +1067,9 @@ function nextQuestion() {
     document.getElementById('loading-q-title').textContent = 'AI 正在生成剩余题目……';
     document.getElementById('loading-company-label').textContent = '请稍候，马上就好';
 
-    // Poll until batch 2 is ready
-    const checkInterval = setInterval(() => {
-      if (state._batch2Ready === true) {
+    // Poll until all batches ready
+    var checkInterval = setInterval(function() {
+      if (allBatchesReady()) {
         clearInterval(checkInterval);
         state.currentQ++;
         renderProgress();
@@ -1061,7 +1115,7 @@ async function submitDiagnosis() {
   try {
     const mcqCorrect = state.mcqs.filter(q => q.userAnswer === q.correct).length;
     const mcqTotal = state.mcqs.length;
-    const mcqScore = Math.round((mcqCorrect / mcqTotal) * 10);
+    const mcqScore = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 10) : 0;
 
     const dimScores = {}, dimTotals = {};
     state.mcqs.forEach(q => {
@@ -1086,7 +1140,7 @@ async function submitDiagnosis() {
     ).join('\n\n');
 
     const modeInfo = state.mode === 'quick' ? '快速诊断（仅选择题）' : '深度诊断（选择题 + 简答题）';
-    const correctRate = Math.round(mcqCorrect/mcqTotal*100);
+    var correctRate = mcqTotal > 0 ? Math.round(mcqCorrect/mcqTotal*100) : 0;
 
     // Phase 1: Core — fast
     const corePrompt = `你是价值投资能力圈评估专家。基于巴菲特、芒格、段永平的框架。
@@ -1113,19 +1167,9 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     try {
       coreResult = JSON.parse(coreJson[0]);
     } catch(e) {
-      // JSON truncated or malformed — try to repair
-      var raw = coreJson[0];
-      var lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
-      if (lastComplete > 0) {
-        raw = raw.substring(0, lastComplete + 1);
-        raw = raw.replace(/,(\s*[}\]])/g, '$1'); // strip trailing commas
-        var oa = (raw.match(/\{/g) || []).length;
-        var ca = (raw.match(/\}/g) || []).length;
-        while (ca < oa) { raw += '}'; ca++; }
-        var oas = (raw.match(/\[/g) || []).length;
-        var cas = (raw.match(/\]/g) || []).length;
-        while (cas < oas) { raw += ']'; cas++; }
-        try { coreResult = JSON.parse(raw); } catch(e2) {
+      var fixed = repairJSON(coreJson[0]);
+      if (fixed) {
+        try { coreResult = JSON.parse(fixed); } catch(e2) {
           throw new Error('AI 返回内容格式异常，请重试。' + e2.message.slice(0, 50));
         }
       } else {
@@ -1157,19 +1201,9 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
           var rd = JSON.parse(rj[0]);
           state.results.mcq_review = rd.mcq_review || [];
         } catch(e) {
-          // JSON truncated — try to repair
-          var raw = rj[0];
-          var lastComplete = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'));
-          if (lastComplete > 0) {
-            raw = raw.substring(0, lastComplete + 1);
-            // Close any unclosed array
-            var openArr = (raw.match(/\[/g) || []).length;
-            var closeArr = (raw.match(/\]/g) || []).length;
-            while (closeArr < openArr) { raw += ']'; closeArr++; }
-            var openObj = (raw.match(/\{/g) || []).length;
-            var closeObj = (raw.match(/\}/g) || []).length;
-            while (closeObj < openObj) { raw += '}'; closeObj++; }
-            try { var rd2 = JSON.parse(raw); state.results.mcq_review = rd2.mcq_review || []; } catch(e2) { console.error('Review repair failed:', e2); }
+          var fixed = repairJSON(rj[0]);
+          if (fixed) {
+            try { var rd2 = JSON.parse(fixed); state.results.mcq_review = rd2.mcq_review || []; } catch(e2) { console.error('Review repair failed:', e2); }
           }
         }
       }
@@ -1191,17 +1225,9 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
           state.results.learning_path = md.learning_path || [];
           state.results._detailReady = true;
         } catch(e) {
-          var raw2 = mj[0];
-          var lc2 = Math.max(raw2.lastIndexOf('}'), raw2.lastIndexOf(']'));
-          if (lc2 > 0) {
-            raw2 = raw2.substring(0, lc2 + 1);
-            var oa = (raw2.match(/\[/g) || []).length;
-            var ca = (raw2.match(/\]/g) || []).length;
-            while (ca < oa) { raw2 += ']'; ca++; }
-            var oo = (raw2.match(/\{/g) || []).length;
-            var co = (raw2.match(/\}/g) || []).length;
-            while (co < oo) { raw2 += '}'; co++; }
-            try { var md2 = JSON.parse(raw2); state.results.master_comparisons = md2.master_comparisons || []; state.results.learning_path = md2.learning_path || []; state.results._detailReady = true; } catch(e2) { console.error('ML repair failed:', e2); }
+          var fixed2 = repairJSON(mj[0]);
+          if (fixed2) {
+            try { var md2 = JSON.parse(fixed2); state.results.master_comparisons = md2.master_comparisons || []; state.results.learning_path = md2.learning_path || []; state.results._detailReady = true; } catch(e2) { console.error('ML repair failed:', e2); }
           }
         }
       }
@@ -1433,6 +1459,7 @@ function renderDeepDimensionBars(r) {
 }
 
 function renderQuickRadar(r) {
+  if (typeof Chart === 'undefined') return; // Chart.js failed to load
   const ctx = document.getElementById('radar-chart').getContext('2d');
   if (window._radarChart) window._radarChart.destroy();
 
@@ -1464,6 +1491,7 @@ function renderQuickRadar(r) {
 }
 
 function renderDeepRadar(scores) {
+  if (typeof Chart === 'undefined') return; // Chart.js failed to load
   const ctx = document.getElementById('radar-chart').getContext('2d');
   if (window._radarChart) window._radarChart.destroy();
 
