@@ -529,7 +529,7 @@ body {
   <div id="screen-results" class="card" style="display:none;">
     <div class="card-body">
       <div class="result-header">
-        <div class="result-score-circle" id="score-circle"></div>
+        <div id="score-grade" style="text-align:center;"></div>
         <div class="result-title" id="result-title"></div>
         <div class="result-subtitle" id="result-subtitle"></div>
         <div class="result-mode-badge" id="result-mode-badge"></div>
@@ -1212,7 +1212,7 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是价值投资专家。\n1. 找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\n2. 3-5条学习建议。字段：title, detail, resource(资料名+作者), link_hint(搜索关键词)。\n严格JSON：{"master_comparisons":[...],"learning_path":[...]}';
+    var mlPrompt = '你是价值投资专家。\n找巴菲特、芒格、段永平、李录中至少2位在"' + state.company + '"或同类行业的真实投资经历。字段：master, avatar(emoji), company, story(2句), competence_insight, lesson。\n严格JSON：{"master_comparisons":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
@@ -1223,12 +1223,11 @@ ${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_
         try {
           var md = JSON.parse(mj[0]);
           state.results.master_comparisons = md.master_comparisons || [];
-          state.results.learning_path = md.learning_path || [];
           state.results._detailReady = true;
         } catch(e) {
           var fixed2 = repairJSON(mj[0]);
           if (fixed2) {
-            try { var md2 = JSON.parse(fixed2); state.results.master_comparisons = md2.master_comparisons || []; state.results.learning_path = md2.learning_path || []; state.results._detailReady = true; } catch(e2) { console.error('ML repair failed:', e2); }
+            try { var md2 = JSON.parse(fixed2); state.results.master_comparisons = md2.master_comparisons || []; state.results._detailReady = true; } catch(e2) { console.error('ML repair failed:', e2); }
           }
         }
       }
@@ -1301,20 +1300,7 @@ function appendDetailResults() {
       '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📋 逐题解析（共' + review.length + '题）<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + rhtml + '</div></div>');
   }
 
-  // 3. 学习路径
-  var lp = r.learning_path || [];
-  if (lp.length > 0) {
-    var lhtml = lp.map(function(step, i) {
-      return '<div class="learning-step"><div class="step-num">' + (i+1) + '</div>' +
-      '<div class="step-content"><div class="step-title">' + (step.title||'') + '</div>' +
-      '<div class="step-detail">' + (step.detail||'') + '</div>' +
-      (step.resource ? '<div style="margin-top:4px;"><span class="step-resource">📚 ' + step.resource + '</span></div>' : '') +
-      (step.link_hint ? '<div style="font-size:12px;color:var(--soft);margin-top:3px;">🔗 ' + step.link_hint + '</div>' : '') +
-      '</div></div>';
-    }).join('');
-    finishDetailSection('loader-learning',
-      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">📖 学习路径<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + lhtml + '</div></div>');
-  }
+  // 3. 学习路径（已移除）
 }
 
 function toggleCollapse(header) {
@@ -1352,11 +1338,14 @@ function renderResults() {
     displayLabel = r.overall_level || '';
   }
 
-  const circle = document.getElementById('score-circle');
-  circle.style.background = circleBg;
-  circle.style.border = `3px solid ${circleColor}`;
-  const scoreLabelStyle = isQuick ? 'font-size:12px;' : 'font-size:11px;';
-  circle.innerHTML = `<div class="score-big" style="color:${circleColor};">${displayScore}</div><div class="score-label" style="color:${circleColor};${scoreLabelStyle}">${displayLabel}</div>`;
+  // 方案B: 大字 + 小字
+  var levelText = isQuick ? (r.level || '?') : (r.overall_level || '?');
+  var levelDesc = isQuick ? (r.level_desc || '') : '';
+  var labelColor = isQuick ? circleColor : circleColor;
+  document.getElementById('score-grade').innerHTML =
+    '<div style="font-size:48px;font-weight:700;letter-spacing:-1px;line-height:1.1;color:' + circleColor + ';">' + displayScore + '</div>' +
+    (isQuick ? '<div style="font-size:14px;font-weight:500;margin-top:4px;color:' + circleColor + ';">' + levelDesc + '</div>' : '') +
+    '<div style="font-size:13px;color:var(--muted);margin-top:6px;">' + (isQuick ? levelText : '') + '</div>';
 
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
   document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
@@ -1405,11 +1394,10 @@ function renderResults() {
   };
   document.getElementById('detail-sections').innerHTML =
     makeLoader('loader-master', '🎯 投资大师怎么看') +
-    makeLoader('loader-mcq', '📋 逐题解析') +
-    makeLoader('loader-learning', '📖 学习路径');
+    makeLoader('loader-mcq', '📋 逐题解析');
 
   // Start progress bars: slowly fill to ~85% over ~20 seconds
-  ['loader-master','loader-mcq','loader-learning'].forEach(function(id) {
+  ['loader-master','loader-mcq'].forEach(function(id) {
     var bar = document.getElementById(id + '-bar');
     if (!bar) return;
     var elapsed = 0;
