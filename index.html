@@ -119,6 +119,8 @@ body {
   color: var(--soft); background: none; border: none; cursor: pointer;
 }
 .btn-skip:hover { color: var(--muted); }
+.btn-ownership { transition: all 0.15s; }
+.btn-ownership.selected { background: var(--ink) !important; color: #fff !important; border-color: var(--ink) !important; font-weight: 600; }
 
 /* ═══════════ PROGRESS ═══════════ */
 .progress-bar { display: flex; gap: 4px; margin-bottom: 20px; }
@@ -440,8 +442,8 @@ body {
       <div style="margin-bottom:18px;">
         <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">你的状态</label>
         <div style="display:flex;gap:10px;">
-          <button type="button" id="btn-holding" class="btn btn-outline btn-small" onclick="setOwnership('holding')" style="flex:1;">📈 我已持有</button>
-          <button type="button" id="btn-researching" class="btn btn-outline btn-small" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
+          <button type="button" id="btn-holding" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('holding')" style="flex:1;">📈 我已持有</button>
+          <button type="button" id="btn-researching" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
         </div>
         <div id="anxiety-row" style="display:none;margin-top:12px;">
           <div style="text-align:center;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px;" id="anxiety-label">有点焦虑</div>
