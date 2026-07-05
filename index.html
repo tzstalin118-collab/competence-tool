@@ -1187,7 +1187,6 @@ async function submitDiagnosis() {
       if (q.userAnswer === q.correct) weightedCorrect += (WEIGHTS[q.dimension] || 5);
     });
     var weightedScore = mcqTotal > 0 ? Math.round((weightedCorrect / maxWeight) * 100) : 0;
-    state.results.weightedScore = weightedScore;
 
     const dimScores = {}, dimTotals = {};
     state.mcqs.forEach(q => {
@@ -1250,7 +1249,7 @@ ${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"
     }
 
     state.results = coreResult;
-    state.results.mcqScore = mcqScore;
+    state.results.weightedScore = weightedScore;
     state.results.mcqCorrect = mcqCorrect;
     state.results.mcqTotal = mcqTotal;
     state.results._dimScores = dimScores;
