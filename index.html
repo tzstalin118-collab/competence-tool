@@ -620,7 +620,6 @@ const KNOWLEDGE_BASE = `
 3. 财务/经营理解 — 能不能看懂关键经营指标
 4. 管理层判断 — 能不能评价管理层
 5. 行业/风险认知 — 能不能看清行业格局
-6. 自我认知诚实度 — 知不知道自己的边界在哪
 `;
 
 // ═══════════════════════════════════════
@@ -809,7 +808,7 @@ async function startDiagnosis() {
 
     // Batch 3: last 5 MCQs + 3 open-ended in background
     generateBatch(3, 5,
-      '行业/风险认知(1题)、自我认知诚实度(2题)、商业模式理解(1题)、竞争优势判断(1题)', true
+      '行业/风险认知(2题)、商业模式理解(1题)、竞争优势判断(1题)、管理层判断(1题)', true
     ).then(function(r) {
       if (r) { state.mcqs = state.mcqs.concat(r.mcqs); state.openEnded = r.open_ended || []; state._batch3Ready = true; renderProgress(); renderQuestion(); }
     }).catch(function(e) { console.error('B3:', e); state._batch3Ready = true; renderQuestion(); });
@@ -1178,7 +1177,7 @@ ${KNOWLEDGE_BASE}
 ## 评估"${state.company}"，模式：${modeInfo}，正确率：${mcqCorrect}/${mcqTotal}（${correctRate}%）
 
 ## 只输出以下字段，不要逐题解析、不要大师对标、不要学习路径：
-${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5,"自我认知诚实度":7},"overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
+${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5},"overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
 严格JSON，无markdown包裹。`;
 
     const userPrompt = '公司：' + state.company + '\n模式：' + state.mode + '\n\n选择题结果\n' + mcqAnalysis + '\n\n逐题详情\n' + mcqDetail + '\n\n' + (hasOpenEnded ? '简答题\n' + oeText : '简答题：未作答');
@@ -1415,7 +1414,7 @@ function renderResults() {
     document.getElementById('insight-detail').innerHTML = detailHTML;
   } else if (!isQuick && r.dimension_analysis) {
     const da = r.dimension_analysis;
-    const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+    const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知'];
     const detailHTML = dims.map(d => {
       const a = da[d] || {};
       return `<div style="margin-bottom:10px;"><strong style="color:var(--ink);">${d}</strong> <span style="color:var(--green);font-size:13px;">✅ ${a.strength||''}</span> <span style="color:var(--coral);font-size:13px;">⚠️ ${a.weakness||''}</span></div>`;
@@ -1470,7 +1469,7 @@ function renderQuickDimensionBars(r) {
 
 function renderDeepDimensionBars(r) {
   const scores = r.scores || {};
-  const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知','自我认知诚实度'];
+  const dims = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知'];
   return dims.map(d => {
     const s = scores[d] || 0;
     let color = s >= 8 ? 'var(--green)' : s >= 6 ? 'var(--amber)' : s >= 4 ? 'var(--coral)' : 'var(--red)';
@@ -1520,10 +1519,10 @@ function renderDeepRadar(scores) {
   const ctx = document.getElementById('radar-chart').getContext('2d');
   if (window._radarChart) window._radarChart.destroy();
 
-  const labels = ['商业模式','竞争优势','财务/经营','管理层','行业/风险','自我诚实'];
+  const labels = ['商业模式','竞争优势','财务/经营','管理层','行业/风险'];
   const userData = [
     scores['商业模式理解']||0, scores['竞争优势判断']||0, scores['财务/经营理解']||0,
-    scores['管理层判断']||0, scores['行业/风险认知']||0, scores['自我认知诚实度']||0
+    scores['管理层判断']||0, scores['行业/风险认知']||0
   ];
 
   window._radarChart = new Chart(ctx, {
