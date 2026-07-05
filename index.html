@@ -1175,7 +1175,16 @@ async function submitDiagnosis() {
   try {
     const mcqCorrect = state.mcqs.filter(q => q.userAnswer === q.correct).length;
     const mcqTotal = state.mcqs.length;
-    const mcqScore = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 10) : 0;
+
+    // Weighted scoring: harder dimensions carry more weight
+    var WEIGHTS = { '商业模式理解': 8, '竞争优势判断': 7, '行业/风险认知': 7, '财务/经营理解': 6, '管理层判断': 5 };
+    var maxWeight = (8+7+7+6+5) * 3; // = 99 (5 dimensions × 3 questions each)
+    var weightedCorrect = 0;
+    state.mcqs.forEach(function(q) {
+      if (q.userAnswer === q.correct) weightedCorrect += (WEIGHTS[q.dimension] || 5);
+    });
+    var weightedScore = mcqTotal > 0 ? Math.round((weightedCorrect / maxWeight) * 100) : 0;
+    state.results.weightedScore = weightedScore;
 
     const dimScores = {}, dimTotals = {};
     state.mcqs.forEach(q => {
@@ -1376,28 +1385,24 @@ function renderResults() {
   const r = state.results;
   const isQuick = state.mode === 'quick';
 
-  // ── 百分制评分 (computed locally) ──
+  // ── 加权百分制评分 ──
   var circleColor, displayScore, gradeTag;
   if (isQuick) {
-    var pct = r.mcqTotal > 0 ? Math.round((r.mcqCorrect / r.mcqTotal) * 100) : 0;
-    if (pct >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
-    else if (pct >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
-    else if (pct >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
-    else                { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
-    displayScore = pct;
+    displayScore = r.weightedScore || 0;
   } else {
     var scores = r.scores || {};
-    var vals = Object.values(scores);
-    var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0) / vals.length) : 0;
-    var deepPct = avg * 10;
-    if (deepPct >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
-    else if (deepPct >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
-    else if (deepPct >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
-    else                    { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
-    displayScore = deepPct;
+    var WEIGHTS = { '商业模式理解': 8, '竞争优势判断': 7, '行业/风险认知': 7, '财务/经营理解': 6, '管理层判断': 5 };
+    var weightedSum = 0;
+    Object.keys(scores).forEach(function(d) { weightedSum += (scores[d]||0) * (WEIGHTS[d]||5); });
+    var weightedMax = (8+7+7+6+5) * 10;
+    displayScore = weightedMax > 0 ? Math.round((weightedSum / weightedMax) * 100) : 0;
   }
+  if (displayScore >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
+  else if (displayScore >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
+  else if (displayScore >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
+  else                         { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
 
-  // 方案B: 大字数字 + 小字评语
+  // 大字数字 + 小字评语
   document.getElementById('score-grade').innerHTML =
     '<div style="font-size:56px;font-weight:700;letter-spacing:-1.5px;line-height:1;color:' + circleColor + ';">' + displayScore + '<span style="font-size:22px;font-weight:500;"> 分</span></div>' +
     '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
@@ -1459,7 +1464,7 @@ function renderResults() {
   // ── Calming wisdom (from value investing masters) ──
   var anxiety = state.anxiety || 0;
   var isHolding = state.ownership === 'holding';
-  var isGood = isQuick ? ((r.mcqCorrect/r.mcqTotal||0) >= 0.6) : ((Object.values(r.scores||{}).reduce(function(a,b){return a+b;},0)/Math.max(1,Object.keys(r.scores||{}).length)) >= 6);
+  var isGood = (r.weightedScore || 0) >= 70;
 
   var allQuotes = {
     market: [
