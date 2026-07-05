@@ -1151,7 +1151,7 @@ ${KNOWLEDGE_BASE}
 ## 评估"${state.company}"，模式：${modeInfo}，正确率：${mcqCorrect}/${mcqTotal}（${correctRate}%）
 
 ## 只输出以下字段，不要逐题解析、不要大师对标、不要学习路径：
-${state.mode === 'quick' ? '{"level":"等级","level_desc":"一句话","overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5,"自我认知诚实度":7},"overall_level":"基本理解","overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
+${state.mode === 'quick' ? '{"overall_assessment":"150字总评","key_insight":"最犀利的洞察","dimension_summary":{"维度":"一句话"},"critical_question":"终极检验问题"}' : '{"scores":{"商业模式理解":7,"竞争优势判断":5,"财务/经营理解":4,"管理层判断":6,"行业/风险认知":5,"自我认知诚实度":7},"overall_assessment":"200字总评","key_insight":"洞察","dimension_analysis":{"维度":{"strength":"优","weakness":"劣"}},"critical_question":"终极检验问题"}'}
 严格JSON，无markdown包裹。`;
 
     const userPrompt = '公司：' + state.company + '\n模式：' + state.mode + '\n\n选择题结果\n' + mcqAnalysis + '\n\n逐题详情\n' + mcqDetail + '\n\n' + (hasOpenEnded ? '简答题\n' + oeText : '简答题：未作答');
@@ -1316,36 +1316,30 @@ function renderResults() {
   const r = state.results;
   const isQuick = state.mode === 'quick';
 
-  // ── Score circle ──
-  let circleColor, circleBg, displayScore, displayLabel;
+  // ── Fixed grade system (computed locally, not AI-generated) ──
+  var circleColor, displayScore, gradeLabel, gradeDesc;
   if (isQuick) {
-    const level = r.level || '';
-    if (level.includes('A')) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
-    else if (level.includes('B')) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
-    else if (level.includes('C')) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
-    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
-    displayScore = r.level ? r.level.charAt(0) : '?';
-    displayLabel = r.level || '';
+    var pct = r.mcqTotal > 0 ? Math.round((r.mcqCorrect / r.mcqTotal) * 100) : 0;
+    if (pct >= 80)      { circleColor = 'var(--green)'; gradeLabel = 'A 级'; gradeDesc = '深度理解'; }
+    else if (pct >= 60) { circleColor = 'var(--amber)'; gradeLabel = 'B 级'; gradeDesc = '基本看懂'; }
+    else if (pct >= 40) { circleColor = 'var(--coral)'; gradeLabel = 'C 级'; gradeDesc = '认知模糊'; }
+    else                { circleColor = 'var(--red)';   gradeLabel = 'D 级'; gradeDesc = '需要从头学'; }
+    displayScore = gradeLabel;
   } else {
-    const scores = r.scores || {};
-    const vals = Object.values(scores);
-    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : 0;
-    if (avg >= 8) { circleColor = 'var(--green)'; circleBg = 'var(--green-bg)'; }
-    else if (avg >= 6) { circleColor = 'var(--amber)'; circleBg = 'var(--amber-bg)'; }
-    else if (avg >= 4) { circleColor = 'var(--coral)'; circleBg = 'var(--coral-light)'; }
-    else { circleColor = 'var(--red)'; circleBg = 'var(--red-bg)'; }
-    displayScore = avg;
-    displayLabel = r.overall_level || '';
+    var scores = r.scores || {};
+    var vals = Object.values(scores);
+    var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0) / vals.length) : 0;
+    if (avg >= 8)      { circleColor = 'var(--green)'; gradeLabel = '深度理解'; gradeDesc = '综合得分 ' + avg + '/10'; }
+    else if (avg >= 6) { circleColor = 'var(--amber)'; gradeLabel = '基本理解'; gradeDesc = '综合得分 ' + avg + '/10'; }
+    else if (avg >= 4) { circleColor = 'var(--coral)'; gradeLabel = '认知模糊'; gradeDesc = '综合得分 ' + avg + '/10'; }
+    else               { circleColor = 'var(--red)';   gradeLabel = '需要补课'; gradeDesc = '综合得分 ' + avg + '/10'; }
+    displayScore = avg + ' / 10';
   }
 
   // 方案B: 大字 + 小字
-  var levelText = isQuick ? (r.level || '?') : (r.overall_level || '?');
-  var levelDesc = isQuick ? (r.level_desc || '') : '';
-  var labelColor = isQuick ? circleColor : circleColor;
   document.getElementById('score-grade').innerHTML =
     '<div style="font-size:48px;font-weight:700;letter-spacing:-1px;line-height:1.1;color:' + circleColor + ';">' + displayScore + '</div>' +
-    (isQuick ? '<div style="font-size:14px;font-weight:500;margin-top:4px;color:' + circleColor + ';">' + levelDesc + '</div>' : '') +
-    '<div style="font-size:13px;color:var(--muted);margin-top:6px;">' + (isQuick ? levelText : '') + '</div>';
+    '<div style="font-size:14px;font-weight:500;margin-top:4px;color:' + circleColor + ';">' + gradeLabel + ' · ' + gradeDesc + '</div>';
 
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
   document.getElementById('result-subtitle').textContent = r.overall_assessment || '';
