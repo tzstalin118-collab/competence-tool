@@ -1453,34 +1453,58 @@ function renderResults() {
 
   // ── Calming wisdom (from value investing masters) ──
   var anxiety = state.anxiety || 0;
-  var quotes = [];
-  if (anxiety >= 7) {
-    quotes = [
-      '巴菲特说："股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以选择不理他。"',
+  var isHolding = state.ownership === 'holding';
+  var isGood = isQuick ? ((r.mcqCorrect/r.mcqTotal||0) >= 0.6) : ((Object.values(r.scores||{}).reduce(function(a,b){return a+b;},0)/Math.max(1,Object.keys(r.scores||{}).length)) >= 6);
+
+  var allQuotes = {
+    market: [
+      '巴菲特："股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以不理他。"',
       '巴菲特在1999年互联网泡沫中跑输标普20个点，被《时代》周刊嘲笑——两年后泡沫破灭，他成了唯一站着的人。',
-      '段永平："安全边际不是抄底，是你知道这个东西值一块钱，用五毛钱买。不知道值不值，一毛钱也是贵的。"'
-    ];
-  } else if (isQuick ? ((r.mcqCorrect/r.mcqTotal||0) >= 0.6) : ((Object.values(r.scores||{}).reduce(function(a,b){return a+b;},0)/Math.max(1,Object.keys(r.scores||{}).length)) >= 6)) {
-    quotes = [
-      '段永平投资网易赚了100多倍，但他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
-      '巴菲特："我们不是靠预测市场赚钱的，是靠理解企业赚钱的。"'
-    ];
-  } else {
-    quotes = [
-      '芒格说过："我们不是靠解决难题成功的，是靠避开难题成功的。"',
+      '段永平投资网易赚了100多倍，他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
+      '巴菲特："别人贪婪时恐惧，别人恐惧时贪婪——前提是你知道自己没搞错。"',
+      '段永平："市场跌的时候你怕不怕？怕是因为你不知道它值多少钱。"',
+      '巴菲特 2008 年金融危机期间买了高盛和通用电气，他说"坏消息是投资者最好的朋友"。',
+      '段永平 2012 年苹果跌了 40% 继续加仓，现在这笔投资赚了超过 5 倍。'
+    ],
+    discipline: [
+      '段永平："投资最重要的不是智商，是不做自己不懂的事。"',
+      '芒格："我们不是靠解决难题成功的，是靠避开难题成功的。"',
       '巴菲特："投资最重要的不是你对了多少次，而是你对的时候赚了多少。"',
-      '李录说："真正的能力圈不是你知道什么，是你知道自己不知道什么。"',
-      '段永平："投资是一场你可以自己选题目的考试。不碰不懂的题，正确率天然就高。"'
-    ];
+      '段永平："投资是一场你可以自己选题目的考试。不碰不懂的题，正确率天然就高。"',
+      '巴菲特："绝对不要用杠杆。哪怕 99 次都对，第 100 次错就归零。"',
+      '芒格把投资比作打孔卡——"你只有 20 个孔，一辈子只能投 20 次。"',
+      '段永平："看得懂的公司你都找不到 10 家，不需要着急。"'
+    ],
+    learning: [
+      '李录："真正的能力圈不是你知道什么，是你知道自己不知道什么。"',
+      '芒格："我这辈子遇到的聪明人没有不每天阅读的——没有，一个都没有。"',
+      '巴菲特："风险来自于你不知道自己在做什么。"',
+      '段永平："懂一家公司，越跌你应该越高兴才对。"',
+      '巴菲特："如果你不愿意持有一只股票十年，那就不要持有十分钟。"',
+      '段永平："投资没有捷径，只有日积月累地理解企业。"'
+    ]
+  };
+
+  // Pick categories based on scenario
+  var picked = [];
+  if (isHolding && anxiety >= 5) {
+    // Anxious holder: market calming + discipline
+    picked.push(allQuotes.market[Math.floor(Math.random() * allQuotes.market.length)]);
+    picked.push(allQuotes.discipline[Math.floor(Math.random() * allQuotes.discipline.length)]);
+  } else if (isGood) {
+    // Good score: learning + market
+    picked.push(allQuotes.learning[Math.floor(Math.random() * allQuotes.learning.length)]);
+    picked.push(allQuotes.market[Math.floor(Math.random() * allQuotes.market.length)]);
+  } else {
+    // Low score: discipline + learning
+    picked.push(allQuotes.discipline[Math.floor(Math.random() * allQuotes.discipline.length)]);
+    picked.push(allQuotes.learning[Math.floor(Math.random() * allQuotes.learning.length)]);
   }
-  var pick = quotes[Math.floor(Math.random() * quotes.length)];
-  if (state.ownership === 'holding' && anxiety >= 5) {
-    pick = quotes[0]; // Always show calming quote for anxious holders
-  }
+
   document.getElementById('calming-wisdom').innerHTML =
-    '<div style="margin-top:14px;padding:14px 16px;background:var(--amber-bg);border:1px solid #f0d78c;border-radius:10px;text-align:center;">' +
-    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:6px;">🧘 大师说</div>' +
-    '<div style="font-size:13px;color:#8b6914;line-height:1.6;">' + pick + '</div></div>';
+    '<div style="margin-top:14px;padding:14px 16px;background:var(--amber-bg);border:1px solid #f0d78c;border-radius:10px;">' +
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:8px;">🧘 大师说</div>' +
+    '<div style="font-size:13px;color:#8b6914;line-height:1.65;">' + picked.map(function(q) { return '<div style="margin-bottom:6px;">💬 ' + q + '</div>'; }).join('') + '</div></div>';
 
   // ── Loading placeholders with tracked progress bars ──
   state._detailTimers = {};
