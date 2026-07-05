@@ -927,7 +927,7 @@ function showCompanyError(name, suggestions) {
 
 // Generate a batch of questions
 async function generateBatch(batchNum, count, dimensions, withOpenEnded) {
-  const oePart = withOpenEnded ? '\n同时生成3道追问型简答题（id从' + (count + 1) + '开始），放在"open_ended"数组中，每道题包含id、dimension、question字段。' : '';
+  const oePart = withOpenEnded ? '\n同时生成3道追问型简答题。重要合规要求：不要对用户的任何投资判断表示认同或反对。只评价其分析框架的完整性、逻辑是否自洽、是否覆盖了关键维度。绝对不为用户提供任何投资建议（id从' + (count + 1) + '开始），放在"open_ended"数组中，每道题包含id、dimension、question字段。' : '';
 
   const systemPrompt = `你是一个价值投资诊断专家。你的框架基于巴菲特、芒格、段永平的能力圈理论。
 
@@ -1390,7 +1390,7 @@ function finishDetailSection(loaderId, html) {
 function appendDetailResults() {
   var r = state.results;
 
-  // 1. 投资大师怎么看
+  // 1. 商业大师视角
   var masters = r.master_comparisons || [];
   if (masters.length > 0) {
     var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
@@ -1404,7 +1404,7 @@ function appendDetailResults() {
       '<div class="master-lesson"><strong>🧠 启发：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
     finishDetailSection('loader-master',
-      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 投资大师怎么看<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 商业大师视角<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
   }
 
   // 2. 逐题解析
@@ -1603,7 +1603,7 @@ function renderResults() {
     return '<div id="' + id + '" class="collapsible-loading" style="border:1px solid var(--hairline);border-radius:10px;margin-bottom:8px;"><span>' + label + '</span><div class="detail-progress-track"><div id="' + id + '-bar" class="detail-progress-fill"></div></div></div>';
   };
   document.getElementById('detail-sections').innerHTML =
-    makeLoader('loader-master', '🎯 投资大师怎么看') +
+    makeLoader('loader-master', '🎯 商业大师视角') +
     makeLoader('loader-mcq', '📋 逐题解析');
 
   // Start progress bars: slowly fill to ~85% over ~20 seconds
@@ -1850,7 +1850,7 @@ async function submitCriticalAnswer() {
   btn.disabled = true; btn.textContent = 'AI 正在分析……';
   fb.style.display = 'block'; fb.innerHTML = '<div style="text-align:center;color:var(--muted);">分析中……</div>';
   try {
-    const sp = '你是一个价值投资评估专家。用户回答了一个终极检验问题。请简短评价（100字以内）：用户的回答暴露了什么知识盲区？他的理解深度如何？给一个1-10的打分。用鼓励但诚实的语气。';
+    const sp = '你是一个商业分析评估专家。用户回答了一个商业认知问题。请简短评价（100字以内）：用户的分析框架是否完整？逻辑是否自洽？覆盖了哪些关键维度？给一个分析框架完整度的1-10打分。用鼓励但诚实的语气。合规要求：不要评价用户的任何投资判断是否正确，不要提供任何投资建议，只评价分析框架的完整性。';
     const up = '终极问题：' + (state.results?.critical_question || '') + '\n\n用户回答：' + answer + '\n\n请评价。';
     const content = await callDeepSeek([{role:'system',content:sp},{role:'user',content:up}], 0.5, 800);
     fb.innerHTML = '<div class="critical-feedback"><strong>AI 反馈</strong><br>' + content.replace(/\n/g,'<br>') + '</div>';
