@@ -565,8 +565,6 @@ body {
 
       <div id="detail-sections"></div>
 
-      <div id="calming-wisdom"></div>
-
       <div id="critical-question"></div>
 
       <div class="footer-actions">
@@ -1390,7 +1388,7 @@ function finishDetailSection(loaderId, html) {
 function appendDetailResults() {
   var r = state.results;
 
-  // 1. 商业大师视角
+  // 1. 大师说
   var masters = r.master_comparisons || [];
   if (masters.length > 0) {
     var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
@@ -1403,7 +1401,7 @@ function appendDetailResults() {
       '<div class="master-lesson"><strong>🧠 启发：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
     finishDetailSection('loader-master',
-      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 商业大师视角<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
+      '<div class="collapsible-section"><div class="collapsible-header open" onclick="toggleCollapse(this)">🎯 大师说<span class="collapse-arrow">▶</span></div><div class="collapsible-body expanded">' + mhtml + '</div></div>');
   }
 
   // 2. 逐题解析
@@ -1511,98 +1509,13 @@ function renderResults() {
     document.getElementById('insight-detail').innerHTML = detailHTML;
   }
 
-  // ── Calming wisdom (from value investing masters) ──
-  var anxiety = state.anxiety || 0;
-  var isHolding = state.ownership === 'holding';
-  var isGood = (r.weightedScore || 0) >= 70;
-
-  var allQuotes = {
-    market: [
-      '巴菲特："股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以不理他。"',
-      '巴菲特在1999年互联网泡沫中跑输标普20个点，被《时代》周刊嘲笑——两年后泡沫破灭，他成了唯一站着的人。',
-      '段永平投资网易赚了100多倍，他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
-      '巴菲特："别人贪婪时恐惧，别人恐惧时贪婪——前提是你知道自己没搞错。"',
-      '段永平："市场跌的时候你怕不怕？怕是因为你不知道它值多少钱。"',
-      '巴菲特 2008 年金融危机期间买了高盛和通用电气，他说"坏消息是投资者最好的朋友"。',
-      '段永平 2012 年苹果跌了 40% 继续加仓，现在这笔投资赚了超过 5 倍。',
-      '巴菲特："在别人恐惧时贪婪，在别人贪婪时恐惧——但关键是你要比别人先算清楚。"',
-      '段永平在 2001 年网易跌到 1 美元以下时买入，他说"我知道这家公司值 20 块，所以 1 块钱买不害怕"。',
-      '巴菲特 1973 年买华盛顿邮报，买了之后继续跌了 20%，他说"我不在乎，因为我知道它值更多"。',
-      '芒格："如果你受不了持仓腰斩的痛苦，你就不适合做投资。这种事情每十年发生两三次。"',
-      '巴菲特："投资不是智商 160 的人战胜智商 130 的人，是情绪稳定的人战胜情绪不稳定的人。"',
-      '段永平："很多人问我为什么能拿住苹果这么多年，因为我知道它值多少钱啊。"',
-      '巴菲特说他在 1987 年股灾那天损失了 3.42 亿美元，但那天他没有卖出任何股票。'
-    ],
-    discipline: [
-      '段永平："投资最重要的不是智商，是不做自己不懂的事。"',
-      '芒格："我们不是靠解决难题成功的，是靠避开难题成功的。"',
-      '巴菲特："投资最重要的不是你对了多少次，而是你对的时候赚了多少。"',
-      '段永平："投资是一场你可以自己选题目的考试。不碰不懂的题，正确率天然就高。"',
-      '巴菲特："绝对不要用杠杆。哪怕 99 次都对，第 100 次错就归零。"',
-      '芒格把投资比作打孔卡——"你只有 20 个孔，一辈子只能投 20 次。"',
-      '段永平："看得懂的公司你都找不到 10 家，不需要着急。"',
-      '巴菲特："如果你在牌桌上玩了 30 分钟还不知道谁是傻子，那你就是那个傻子。"',
-      '芒格："我们一直在等待那个胖子从门口经过——你不必每时每刻都在击球。"',
-      '段永平："我错过的好公司多了去了，但错过的都没有亏钱。买错才会亏钱。"',
-      '巴菲特："大多数人不是能力不够，是太着急了。慢慢变富的想法，没人愿意接受。"',
-      '段永平："我投资的原则就是——不借钱、不做空、不懂不做。就这三条。"',
-      '芒格："投资的第一条规则是不要亏钱，第二条是别忘了第一条。"'
-    ],
-    learning: [
-      '李录："真正的能力圈不是你知道什么，是你知道自己不知道什么。"',
-      '芒格："我这辈子遇到的聪明人没有不每天阅读的——没有，一个都没有。"',
-      '巴菲特："风险来自于你不知道自己在做什么。"',
-      '段永平："懂一家公司，越跌你应该越高兴才对。"',
-      '巴菲特："如果你不愿意持有一只股票十年，那就不要持有十分钟。"',
-      '段永平："投资没有捷径，只有日积月累地理解企业。"',
-      '巴菲特："我每天 80% 的时间在阅读。剩下的 20% 在思考和打电话。"',
-      '芒格："如果你想获得智慧，你必须每天阅读。没有捷径。"',
-      '段永平："不懂的东西不要碰。这个道理说起来简单，做到可能需要一辈子。"',
-      '巴菲特："投资很简单，但不容易。简单是因为原理不复杂，不容易是因为人性很难克服。"',
-      '李录："价值投资的理念 5 分钟就能讲完，但真正理解并践行，很多人花了一辈子。"',
-      '段永平："我投资最重要的学习方式就是——读年报。读多了自然就懂了。"',
-      '巴菲特："最好的投资就是投资你自己。你学到的东西没人能拿走。"'
-    ]
-  };
-
-  // Pick quotes based on user situation — always 2 from relevant pools
-  var picked = [];
-  if (isHolding && anxiety >= 7) {
-    // Very anxious holder: heavy market calming
-    picked.push(allQuotes.market[Math.floor(Math.random() * allQuotes.market.length)]);
-    picked.push(allQuotes.market[(Math.floor(Math.random() * allQuotes.market.length) + 3) % allQuotes.market.length]);
-    picked.push(allQuotes.discipline[Math.floor(Math.random() * allQuotes.discipline.length)]);
-  } else if (isHolding && anxiety >= 4) {
-    // Mildly anxious: market + discipline
-    picked.push(allQuotes.market[Math.floor(Math.random() * allQuotes.market.length)]);
-    picked.push(allQuotes.discipline[Math.floor(Math.random() * allQuotes.discipline.length)]);
-  } else if (isGood) {
-    // Confident: 1 learning + 1 market
-    picked.push(allQuotes.learning[Math.floor(Math.random() * allQuotes.learning.length)]);
-    picked.push(allQuotes.market[Math.floor(Math.random() * allQuotes.market.length)]);
-  } else {
-    // Low score: discipline + learning
-    picked.push(allQuotes.discipline[Math.floor(Math.random() * allQuotes.discipline.length)]);
-    picked.push(allQuotes.learning[Math.floor(Math.random() * allQuotes.learning.length)]);
-  }
-  // If researching (not holding): always include a learning quote
-  if (!isHolding && picked.filter(function(q) { return allQuotes.learning.indexOf(q) >= 0; }).length === 0) {
-    picked.push(allQuotes.learning[Math.floor(Math.random() * allQuotes.learning.length)]);
-    picked = picked.slice(0, 3);
-  }
-
-  document.getElementById('calming-wisdom').innerHTML =
-    '<div style="margin-top:14px;padding:14px 16px;background:var(--amber-bg);border:1px solid #f0d78c;border-radius:10px;">' +
-    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--amber);text-transform:uppercase;margin-bottom:8px;">🧘 大师说</div>' +
-    '<div style="font-size:13px;color:#8b6914;line-height:1.65;">' + picked.map(function(q) { return '<div style="margin-bottom:6px;">💬 ' + q + '</div>'; }).join('') + '</div></div>';
-
   // ── Loading placeholders with tracked progress bars ──
   state._detailTimers = {};
   var makeLoader = function(id, label) {
     return '<div id="' + id + '" class="collapsible-loading" style="border:1px solid var(--hairline);border-radius:10px;margin-bottom:8px;"><span>' + label + '</span><div class="detail-progress-track"><div id="' + id + '-bar" class="detail-progress-fill"></div></div></div>';
   };
   document.getElementById('detail-sections').innerHTML =
-    makeLoader('loader-master', '🎯 商业大师视角') +
+    makeLoader('loader-master', '🎯 大师说') +
     makeLoader('loader-mcq', '📋 逐题解析');
 
   // Start progress bars: slowly fill to ~85% over ~20 seconds
