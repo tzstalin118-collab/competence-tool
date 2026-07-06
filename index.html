@@ -959,7 +959,7 @@ ${dimensions}
   const content = await callDeepSeek([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
-  ], 0.8, 2500);
+  ], 0.8, 3000);
 
   console.log('Batch ' + batchNum + ' response length:', (content || '').length);
 
@@ -987,7 +987,7 @@ ${dimensions}
   if (!parsed.mcqs || parsed.mcqs.length === 0) throw new Error('未生成有效题目');
 
   var totalGenerated = parsed.mcqs.length;
-  var mcqs = parsed.mcqs.filter(function(q) { return q.options && Array.isArray(q.options) && q.options.length === 4 && q.question && q.correct; }).map(function(q) { q.dimension = normalizeDim(q.dimension); return Object.assign({}, q, { userAnswer: null }); });
+  var mcqs = parsed.mcqs.filter(function(q) { return q.options && Array.isArray(q.options) && q.options.length >= 3 && q.options.length <= 5 && q.question && q.correct; }).map(function(q) { q.dimension = normalizeDim(q.dimension); return Object.assign({}, q, { userAnswer: null }); });
   var openEnded = (parsed.open_ended || []).filter(function(q) { return q.question && q.dimension; }).map(q => ({ ...q, answer: '' }));
 
   if (mcqs.length < totalGenerated) { console.warn('Batch ' + batchNum + ': dropped ' + (totalGenerated - mcqs.length) + ' bad questions'); }
@@ -1545,21 +1545,18 @@ function renderResults() {
 }
 
 function renderQuickDimensionBars(r) {
-  const ds = r._dimScores || {};
-  const dt = r._dimTotals || {};
-  const dims = Object.keys(ds);
-  return dims.map(d => {
-    const correct = ds[d] || 0;
-    const total = dt[d] || 1;
-    const pct = Math.round((correct / total) * 100);
-    let color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
-    return `
-      <div class="dim-row">
-        <div class="dim-name">${d}</div>
-        <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${color};"></div></div>
-        <div class="dim-score" style="color:${color};">${correct}/${total}</div>
-      </div>`;
+  var ds = r._dimScores || {};
+  var dt = r._dimTotals || {};
+  var ORDER = ['商业模式理解','竞争优势判断','财务/经营理解','管理层判断','行业/风险认知'];
+  return ORDER.map(function(d) {
+    var correct = ds[d] || 0;
+    var total = dt[d] || 0;
+    if (total === 0) return ''; // Skip dimensions with no questions
+    var pct = Math.round((correct / total) * 100);
+    var color = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    return '<div class="dim-row"><div class="dim-name">' + d + '</div><div class="dim-bar-bg"><div class="dim-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div><div class="dim-score" style="color:' + color + ';">' + correct + '/' + total + '</div></div>';
   }).join('');
+}
 }
 
 function renderDeepDimensionBars(r) {
