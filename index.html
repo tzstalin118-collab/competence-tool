@@ -1589,7 +1589,7 @@ function renderQuickRadar(r) {
       labels: labels,
       datasets: [
         { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
-        { label: '普通投资者', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '行业平均水平', data: labels.map(() => 5), borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
         { label: '巴菲特级', data: labels.map(() => 10), borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
       ]
     },
@@ -1618,7 +1618,7 @@ function renderDeepRadar(scores) {
       labels: labels,
       datasets: [
         { label: '你的能力圈', data: userData, borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.15)', borderWidth: 2.5, pointBackgroundColor: '#cc785c', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5 },
-        { label: '普通投资者', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
+        { label: '行业平均水平', data: [5,4,3,3,4,3], borderColor: '#8e8b82', backgroundColor: 'rgba(142,139,130,0.05)', borderWidth: 1.5, borderDash: [4,4], pointBackgroundColor: '#8e8b82', pointRadius: 3 },
         { label: '巴菲特级', data: [10,10,10,10,10,10], borderColor: '#5db872', backgroundColor: 'rgba(93,184,114,0.05)', borderWidth: 1.5, borderDash: [2,2], pointBackgroundColor: '#5db872', pointRadius: 3 },
       ]
     },
@@ -1634,22 +1634,22 @@ function renderDeepRadar(scores) {
 // TIP CAROUSEL
 // ═══════════════════════════════════════
 const LOADING_TIPS_Q = [
-  '价值投资的"能力圈"概念最早由巴菲特在1996年股东信中正式提出，但他在此之前已经实践了30年。',
-  '段永平说：投资最重要的是"不懂不投"。这四个字，他用了二十年才真正内化。',
-  '芒格说过："我们不是靠解决难题成功的，是靠避开难题成功的。"',
-  '巴菲特在1999年互联网泡沫中跑输标普20个点，被《时代》周刊嘲笑——两年后泡沫破灭，他成了唯一站着的人。',
+  '能力圈这个概念，巴菲特用了30年才正式写进股东信。真正理解一个行业，需要时间沉淀。',
+  '芒格说过："我们不是靠解决难题成功的，是靠避开难题成功的。"——边界感比知识量更重要。',
+  '段永平认为"不懂不投"是他最重要的原则。他花了二十年才真正内化这四个字。',
   '李录说：真正的能力圈不是你知道什么，是你知道自己不知道什么。',
-  '巴菲特的办公室里没有股票行情终端。他是认真的。',
-  '段永平投资网易赚了100多倍，但他后来说"我只是知道它值这个钱"。知道值多少钱，就是能力圈。',
+  '巴菲特的办公室里没有股票行情终端——信息过载不如深度思考。',
+  '商业分析的核心不是数据，是理解企业为什么赚钱、能赚多久。',
+  '芒格花了大半辈子才明白：最大的错误不是判断错了，是明明不懂却假装懂。',
 ];
 const LOADING_TIPS_R = [
-  '段永平说他投资成功的秘诀就四个字：不懂不投。这四个字他用了二十年。',
-  '巴菲特有一条铁律：绝对不要用杠杆。哪怕99次都对，第100次错就归零。',
-  '芒格把投资比作打孔卡——你只有20个孔，一辈子只能投20次。每一次都必须是确定的机会。',
-  '李录在哥伦比亚大学的演讲中说："价值投资不是一种策略，是一种世界观。"',
-  '巴菲特说股票市场是为你服务的，不是指导你的。市场先生每天给你报价，你可以选择不理他。',
-  '段永平：安全边际不是抄底，是你知道这个东西值一块钱，用五毛钱买。不知道值不值，一毛钱也是贵的。',
-  '芒格花了大半辈子才明白：最大的投资错误不是买错了，是明明知道自己不懂，却假装懂。',
+  '段永平成功的秘诀就四个字：不懂不投。他用二十年时间才真正内化。',
+  '巴菲特说：绝对不要超出自己的能力边界。哪怕99次侥幸对了，第100次就可能全部归零。',
+  '芒格把决策比作打孔卡——你只有20个孔，一辈子只能做20次重大选择。每一次都必须确定。',
+  '李录在哥伦比亚大学的演讲中说："商业分析不是一种策略，是一种世界观。"',
+  '巴菲特说：市场短期是投票机，长期是称重机。企业的内在价值才是最终答案。',
+  '段永平：安全边际不是抄底，是你知道这个东西值一块钱，用五毛钱买。',
+  '芒格花了大半辈子才明白：最大的认知错误不是看错了，是明明不懂却假装懂。',
 ];
 
 let _carouselState = {};
