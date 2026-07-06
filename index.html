@@ -120,7 +120,7 @@ body {
 }
 .btn-skip:hover { color: var(--muted); }
 .btn-ownership { transition: all 0.15s; }
-.btn-ownership.selected { border-color: var(--coral) !important; background: var(--coral-light) !important; color: var(--ink) !important; font-weight: 600; }
+.btn-ownership.selected { background: var(--ink) !important; color: #fff !important; border-color: var(--ink) !important; font-weight: 600; }
 
 /* ═══════════ PROGRESS ═══════════ */
 .progress-bar { display: flex; gap: 4px; margin-bottom: 20px; }
@@ -739,7 +739,7 @@ function setOwnership(type) {
   state.ownership = type;
   document.getElementById('btn-holding').classList.toggle('selected', type === 'holding');
   document.getElementById('btn-researching').classList.toggle('selected', type === 'researching');
-  document.getElementById('anxiety-row').style.display = (type === 'holding') ? '' : 'none';
+  var ar = document.getElementById('anxiety-row'); if (ar) ar.style.display = (type === 'holding') ? 'block' : 'none';
 }
 function updateAnxietyLabel(val) {
   var labels = {1:'😌 挺淡定的',2:'😌 挺淡定的',3:'😌 挺淡定的',4:'🤔 有点焦虑',5:'🤔 有点焦虑',6:'🤔 有点焦虑',7:'😟 挺焦虑的',8:'😟 挺焦虑的',9:'😰 非常焦虑',10:'😰 非常焦虑'};
@@ -753,6 +753,8 @@ function getAnxiety() {
 function quickStart(company) {
   if (!company) return;
   document.getElementById('company-name').value = company;
+  // Reset ownership to default for quick start
+  state.ownership = 'researching';
   startDiagnosis();
 }
 
