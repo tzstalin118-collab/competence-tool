@@ -456,7 +456,7 @@ body {
           <button type="button" id="btn-researching" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
         </div>
         <div id="anxiety-row" style="display:none;margin-top:12px;">
-          <div style="text-align:center;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px;" id="anxiety-label">有点焦虑</div>
+          <div style="text-align:center;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px;" id="anxiety-label">🤔 有点焦虑</div>
           <input type="range" id="anxiety-slider" min="1" max="10" value="5" oninput="updateAnxietyLabel(this.value)" style="width:100%;accent-color:var(--coral);">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--soft);margin-top:2px;"><span>😌 挺淡定的</span><span>😰 非常焦虑</span></div>
         </div>
@@ -1455,7 +1455,8 @@ function renderResults() {
   var ds = r._dimScores || {};
   var dt = r._dimTotals || {};
   var dims = Object.keys(ds);
-  if (dims.length > 0) {
+  var totalCorrect = Object.values(ds).reduce(function(a,b) { return a + b; }, 0);
+  if (dims.length > 0 && totalCorrect > 0) {
     var best = dims.reduce(function(a,b) { return (ds[a]/dt[a]||0) > (ds[b]/dt[b]||0) ? a : b; });
     var worst = dims.reduce(function(a,b) { return (ds[a]/dt[a]||1) < (ds[b]/dt[b]||1) ? a : b; });
     document.getElementById('takeaway').innerHTML =
@@ -1463,6 +1464,11 @@ function renderResults() {
       '<div>✅ <strong>你最懂：</strong>' + best + '</div>' +
       '<div>⚠️ <strong>最大盲区：</strong>' + worst + '</div>' +
       '<div>💡 <strong>建议：</strong>' + (r.key_insight || '针对薄弱维度加强学习') + '</div></div>';
+  } else if (dims.length > 0) {
+    document.getElementById('takeaway').innerHTML =
+      '<div style="margin-top:14px;padding:12px 16px;background:var(--red-bg);border-radius:8px;font-size:13px;line-height:1.7;text-align:center;">' +
+      '<div>🤔 你在这家公司上还没有建立起有效认知</div>' +
+      '<div style="margin-top:4px;color:var(--muted);">建议从更熟悉的公司开始，或者先阅读一些基础资料再测</div></div>';
   }
 
   var sectionHeader = function(title) { return '<div class="section-header">' + title + '</div>'; };
