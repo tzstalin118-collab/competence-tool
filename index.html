@@ -1557,7 +1557,6 @@ function renderQuickDimensionBars(r) {
     return '<div class="dim-row"><div class="dim-name">' + d + '</div><div class="dim-bar-bg"><div class="dim-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div></div><div class="dim-score" style="color:' + color + ';">' + correct + '/' + total + '</div></div>';
   }).join('');
 }
-}
 
 function renderDeepDimensionBars(r) {
   const scores = r.scores || {};
