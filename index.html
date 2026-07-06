@@ -421,9 +421,9 @@ body {
 
   <!-- ═══════ HEADER ═══════ -->
   <div class="app-header" id="app-header">
-    <div class="badge"><span class="badge-dot"></span>价值投资 · 能力圈诊断</div>
+    <div class="badge"><span class="badge-dot"></span>能力圈诊断</div>
     <h1>你真的懂这家公司吗？</h1>
-    <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题快速诊断 + 可选深度简答</p>
+    <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题 · 快速诊断你的商业认知</p>
   </div>
 
   <!-- ═══════ SCREEN: INPUT ═══════ -->
@@ -1332,7 +1332,7 @@ ${state.mode === 'quick' ? '{"key_insight":"最犀利的洞察","dimension_summa
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是价值投资专家。基于巴菲特和芒格的已知投资哲学和公开言论，推演他们如何看待"' + state.company + '"这家公司——他们会投还是会避开？理由是什么？（注意：是哲学推演，用"可能""倾向于""大概率会"这类措辞，不要编造不存在的投资事件。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), verdict(会投/会避开/不确定), reasoning(2-3句推理), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
+    var mlPrompt = '你是价值投资专家。基于巴菲特和芒格的已知投资哲学和公开言论，评论他们如何看待"' + state.company + '"这家公司。重点是风险角度——这家公司的商业模式有什么潜在风险？护城河在什么情况下会被侵蚀？行业有什么结构性风险？（注意：是风险分析框架，用"可能""值得关注""需要注意"这类措辞，不要给出投资建议，不要预测股价涨跌。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), risk_analysis(从风险角度分析2-3句), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
@@ -1395,12 +1395,11 @@ function appendDetailResults() {
   if (masters.length > 0) {
     var bg = ['#f4faf6','#fefaf3','#fef5f5','#f8f6fd'];
     var mhtml = masters.map(function(m, i) {
-      var verdictEmoji = (m.verdict||'').indexOf('避开') >= 0 ? '🔴' : ((m.verdict||'').indexOf('不确定') >= 0 ? '🟡' : '🟢');
       return '<div class="master-card" style="background:' + bg[i%4] + ';margin-bottom:8px;">' +
       '<div class="master-card-header"><div class="master-avatar">' + (m.avatar||'🎯') + '</div>' +
-      '<div><div class="master-name">' + (m.master||'') + '  ' + verdictEmoji + ' ' + (m.verdict||'') + '</div></div></div>' +
+      '<div><div class="master-name">' + (m.master||'') + '</div></div></div>' +
       '<div style="font-size:12px;color:var(--soft);margin-bottom:6px;">💬 ' + (m.philosophy||'') + '</div>' +
-      '<div class="master-insight">' + (m.reasoning||'') + '</div>' +
+      '<div class="master-insight">⚠️ ' + (m.risk_analysis||'') + '</div>' +
       '<div class="master-lesson"><strong>🧠 启发：</strong>' + (m.lesson||'') + '</div></div>';
     }).join('');
     finishDetailSection('loader-master',
