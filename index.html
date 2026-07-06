@@ -926,7 +926,7 @@ function showCompanyError(name, suggestions) {
 async function generateBatch(batchNum, count, dimensions, withOpenEnded) {
   const oePart = withOpenEnded ? '\n同时生成3道追问型简答题。重要合规要求：不要对用户的任何投资判断表示认同或反对。只评价其分析框架的完整性、逻辑是否自洽、是否覆盖了关键维度。绝对不为用户提供任何投资建议（id从' + (count + 1) + '开始），放在"open_ended"数组中，每道题包含id、dimension、question字段。' : '';
 
-  const systemPrompt = `你是一个价值投资诊断专家。你的框架基于巴菲特、芒格、段永平的能力圈理论。
+  const systemPrompt = `你是一个商业分析诊断专家。你的框架基于巴菲特、芒格、段永平的能力圈理论。
 
 ${KNOWLEDGE_BASE}
 
@@ -940,8 +940,8 @@ ${dimensions}
 ## 出题原则
 - 题目必须针对"${state.company}"，不能是通用题
 - 所有题目必须基于可验证的公开事实，不得编造或臆测数据。如有不确定的事实，换一个确定的方向出题
-- 严禁：问具体数字、百分比、年份数据（如"2023年营收多少""毛利率多少"）。这些是记忆题，不是理解题
-- 严禁：在题目或选项中提及具体年份（如2023年、2024年）。用"近年来""长期""上市以来"替代
+- 严禁：问具体数字、百分比、年份数据（如"某年营收多少""毛利率多少"）。这些是记忆题，不是理解题
+- 严禁：在题目或选项中提及具体年份。用"近年来""长期""上市以来"替代
 - 严禁：对公司的当前状态做断论（如"长期亏损""从未盈利""仍是亏损企业"）。这些状态可能在你知识截止后已改变。改用"早期""创业阶段""在盈利之前"等明确指向过去阶段的措辞，或用结构性问法（如"为何能在早期亏损阶段持续运营"而非"为何长期亏损仍能运营"）
 - 正确示范："腾讯的增值服务为何能长期贡献超一半收入？" 错误示范："腾讯2023年增值服务收入占比多少？"
 - 出题前去重：如果多个题目考察同一个知识点（同一指标、同一壁垒、同一事件），只保留1题。确保15道题覆盖15个不同知识点，无重复题。同一批内的题目之间不能过于相似（不能换一个问法问同一个东西）
@@ -1262,7 +1262,7 @@ async function submitDiagnosis() {
     var correctRate = mcqTotal > 0 ? Math.round(mcqCorrect/mcqTotal*100) : 0;
 
     // Phase 1: Core — fast
-    const corePrompt = `你是价值投资能力圈评估专家。基于巴菲特、芒格、段永平的框架。
+    const corePrompt = `你是商业认知评估专家。基于巴菲特、芒格、段永平的框架。
 
 ${KNOWLEDGE_BASE}
 
@@ -1308,7 +1308,7 @@ ${state.mode === 'quick' ? '{"key_insight":"最犀利的洞察","dimension_summa
     showScreen('screen-results');
 
     // Phase 2a: MCQ review — background (small, fast)
-    var reviewPrompt = '你是价值投资评估专家。逐题解释用户的选择为什么对或错。注意：每道题已标注了正确答案（即"正确答案"字段），你必须以这个正确答案为准来解释，不要自行判断哪个选项正确。严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
+    var reviewPrompt = '你是商业认知解析专家。逐题解释用户的选择为什么对或错。注意：每道题已标注了正确答案（即"正确答案"字段），你必须以这个正确答案为准来解释，不要自行判断哪个选项正确。严格JSON：{"mcq_review":[{"question":"...","userAnswer":"A","correctAnswer":"B","isCorrect":false,"explanation":"..."},...]}';
 
     callDeepSeek([
       { role: 'system', content: reviewPrompt },
@@ -1330,7 +1330,7 @@ ${state.mode === 'quick' ? '{"key_insight":"最犀利的洞察","dimension_summa
     }).catch(function(e) { console.error('Review failed:', e); appendDetailResults(); });
 
     // Phase 2b: Masters + Learning path — background (small, fast)
-    var mlPrompt = '你是价值投资专家。基于巴菲特和芒格的已知投资哲学和公开言论，评论他们如何看待"' + state.company + '"这家公司。重点是风险角度——这家公司的商业模式有什么潜在风险？护城河在什么情况下会被侵蚀？行业有什么结构性风险？（注意：是风险分析框架，用"可能""值得关注""需要注意"这类措辞，不要给出投资建议，不要预测股价涨跌。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), risk_analysis(从风险角度分析2-3句), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
+    var mlPrompt = '你是商业思想分析专家。基于巴菲特和芒格的已知商业哲学和公开言论，评论他们如何看待"' + state.company + '"这家公司。重点是风险角度——这家公司的商业模式有什么潜在风险？护城河在什么情况下会被侵蚀？行业有什么结构性风险？（注意：是风险分析框架，用"可能""值得关注""需要注意"这类措辞，不要给出投资建议，不要预测股价涨跌。）字段：master, avatar(emoji), philosophy(投资者原话/核心理念), risk_analysis(从风险角度分析2-3句), lesson(用户能学到什么)。\n严格JSON：{"master_comparisons":[...]}';
 
     callDeepSeek([
       { role: 'system', content: mlPrompt },
