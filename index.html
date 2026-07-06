@@ -358,6 +358,11 @@ body {
   margin-top: 10px; padding: 14px; background: var(--amber-bg);
   border-radius: 10px; font-size: 13px; line-height: 1.55; color: #8b6914;
 }
+.section-header {
+  font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--soft); margin-top: 28px; margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
 
 /* ═══════════ MOBILE FIXES ═══════════ */
 @media (max-width: 500px) {
@@ -434,10 +439,14 @@ body {
         <input type="text" id="company-name" placeholder="例如：茅台、特斯拉、英伟达、腾讯……" autofocus>
         <div id="company-error-msg"></div>
       </div>
-      <div class="input-group">
-        <label>简单说说你为什么觉得自己懂这家公司（选填）</label>
-        <textarea id="user-claim" placeholder="例如：我研究白酒三年了 / 我在这个行业工作 / 我读过所有年报……"></textarea>
-        <div class="hint">写了会让问题更有针对性，不写也行。</div>
+      <div class="input-group" style="margin-bottom:4px;">
+        <div onclick="var el=document.getElementById('claim-detail');var arrow=document.getElementById('claim-arrow');el.style.display=el.style.display==='none'?'':'none';arrow.textContent=el.style.display==='none'?'▶':'▼';" style="cursor:pointer;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;user-select:none;">
+          <span id="claim-arrow">▶</span> 补充你的背景（选填，点击展开）
+        </div>
+        <div id="claim-detail" style="display:none;">
+          <textarea id="user-claim" placeholder="例如：我研究白酒三年了 / 我在这个行业工作 / 我读过所有年报……" style="margin-top:6px;"></textarea>
+          <div class="hint">写了会让问题更有针对性，不写也行。</div>
+        </div>
       </div>
 
       <div style="margin-bottom:18px;">
@@ -457,15 +466,15 @@ body {
       <div class="mode-cards">
         <div class="mode-card selected" id="mode-quick" onclick="selectMode('quick')">
           <div class="mode-icon">⚡</div>
-          <div class="mode-title">快速诊断</div>
-          <div class="mode-desc">15 道选择题<br>模糊判断能力圈等级</div>
-          <div class="mode-time">≈ 4 分钟</div>
+          <div class="mode-title">快速挑战</div>
+          <div class="mode-desc">15 道选择题<br>快速检验你的商业认知</div>
+          <div class="mode-time">≈ 3 分钟</div>
         </div>
         <div class="mode-card" id="mode-deep" onclick="selectMode('deep')">
           <div class="mode-icon">🔬</div>
-          <div class="mode-title">深度诊断</div>
-          <div class="mode-desc">15 道题 + 3 道追问简答<br>精确评分 + 详细分析</div>
-          <div class="mode-time">≈ 10 分钟</div>
+          <div class="mode-title">深度学习</div>
+          <div class="mode-desc">15 道题 + 3 道追问<br>深度分析你的认知边界</div>
+          <div class="mode-time">≈ 8 分钟</div>
         </div>
       </div>
 
@@ -484,24 +493,12 @@ body {
         <div class="loading-spinner"></div>
         <div class="loading-text" id="loading-q-title">AI 正在为你诊断……</div>
         <div class="loading-sub" id="loading-company-label"></div>
-        <div id="loading-steps" style="text-align:left;max-width:280px;margin:16px auto 0;font-size:13px;color:var(--muted);line-height:2.2;">
+        <div id="loading-steps" style="text-align:left;max-width:280px;margin:20px auto 0;font-size:14px;color:var(--muted);line-height:2.4;">
           <div id="ls-0">⏳ 识别公司信息</div>
           <div id="ls-1">⏳ 分析商业模式</div>
           <div id="ls-2">⏳ 准备诊断题目</div>
           <div id="ls-3" style="opacity:0.4;">⏳ 生成追问简答</div>
         </div>
-        <div class="tip-carousel">
-          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--soft);text-transform:uppercase;margin-bottom:8px;">💬 你可能想知道</div>
-          <div class="tip-cards-wrapper">
-            <div class="tip-cards-track" id="tip-track-q"></div>
-          </div>
-          <div class="tip-nav-row">
-            <button class="tip-arrow" onclick="tipPrev('q')">←</button>
-            <div class="tip-dots" id="tip-dots-q"></div>
-            <button class="tip-arrow" onclick="tipNext('q')">→</button>
-          </div>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--soft);">预计等待 10-15 秒</div>
       </div>
     </div>
   </div>
@@ -524,23 +521,11 @@ body {
     <div class="card-body">
       <div class="loading-state">
         <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-r-title">AI 正在逐题分析你的回答……</div>
-        <div class="loading-sub" id="loading-r-sub">评估六维能力圈</div>
-        <div style="margin-top:18px;width:200px;height:3px;background:var(--hairline);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
+        <div class="loading-text" id="loading-r-title">AI 正在分析你的回答……</div>
+        <div class="loading-sub" id="loading-r-sub"></div>
+        <div style="margin-top:24px;width:200px;height:3px;background:var(--hairline);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
           <div id="loading-progress-bar" style="height:100%;width:0%;background:var(--coral);border-radius:2px;transition:width 0.3s;"></div>
         </div>
-        <div class="tip-carousel">
-          <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--soft);text-transform:uppercase;margin-bottom:8px;">💬 你可能想知道</div>
-          <div class="tip-cards-wrapper">
-            <div class="tip-cards-track" id="tip-track-r"></div>
-          </div>
-          <div class="tip-nav-row">
-            <button class="tip-arrow" onclick="tipPrev('r')">←</button>
-            <div class="tip-dots" id="tip-dots-r"></div>
-            <button class="tip-arrow" onclick="tipNext('r')">→</button>
-          </div>
-        </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--soft);">预计等待 20-30 秒</div>
       </div>
     </div>
   </div>
@@ -1478,13 +1463,15 @@ function renderResults() {
       '<div>💡 <strong>建议：</strong>' + (r.key_insight || '针对薄弱维度加强学习') + '</div></div>';
   }
 
+  var sectionHeader = function(title) { return '<div class="section-header">' + title + '</div>'; };
+
   const modeBadge = document.getElementById('result-mode-badge');
   modeBadge.textContent = isQuick ? '⚡ 快速诊断（仅选择题）' : '🔬 深度诊断';
   modeBadge.style.background = isQuick ? 'var(--card)' : 'var(--amber-bg)';
   modeBadge.style.color = isQuick ? 'var(--muted)' : 'var(--amber)';
 
-  // ── MCQ accuracy bar ──
-  document.getElementById('dimension-scores').innerHTML = isQuick
+  // ── Section: Detailed Analysis ──
+  document.getElementById('dimension-scores').innerHTML = sectionHeader('📊 详细分析') + (isQuick
     ? renderQuickDimensionBars(r)
     : renderDeepDimensionBars(r);
 
@@ -1521,6 +1508,7 @@ function renderResults() {
     return '<div id="' + id + '" class="collapsible-loading" style="border:1px solid var(--hairline);border-radius:10px;margin-bottom:8px;"><span>' + label + '</span><div class="detail-progress-track"><div id="' + id + '-bar" class="detail-progress-fill"></div></div></div>';
   };
   document.getElementById('detail-sections').innerHTML =
+    sectionHeader('💬 深度解读') +
     makeLoader('loader-master', '🎯 大师说') +
     makeLoader('loader-mcq', '📋 逐题解析');
 
@@ -1711,11 +1699,9 @@ function finishProgressAnimation(barId) {
 // Override showScreen
 const _origShowScreen = showScreen;
 showScreen = function(id) {
-  ['q','r'].forEach(t => _stopCarouselTimer(t));
   finishProgressAnimation('loading-progress-bar');
   finishProgressAnimation('loading-q-progress');
   if (id === 'screen-loading-questions') {
-    initCarousel('q');
     // Animated step indicators
     var steps = ['ls-0','ls-1','ls-2','ls-3'];
     var isDeep = state.mode === 'deep';
@@ -1736,7 +1722,7 @@ showScreen = function(id) {
     // Store for cleanup
     state._stepTimers = stepTimers;
   }
-  if (id === 'screen-loading-results') { initCarousel('r'); startProgressAnimation('loading-progress-bar'); }
+  if (id === 'screen-loading-results') { startProgressAnimation('loading-progress-bar'); }
   // Clean up step timers when leaving loading screen
   if (state._stepTimers && id !== 'screen-loading-questions') {
     state._stepTimers.forEach(function(t) { clearTimeout(t); });
