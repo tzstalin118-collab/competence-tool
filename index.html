@@ -457,7 +457,7 @@ body {
         </div>
         <div id="anxiety-row" style="display:none;margin-top:12px;">
           <div style="text-align:center;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px;" id="anxiety-label">🤔 有点焦虑</div>
-          <input type="range" id="anxiety-slider" min="1" max="10" value="5" oninput="updateAnxietyLabel(this.value)" style="width:100%;accent-color:var(--coral);">
+          <input type="range" id="anxiety-slider" min="1" max="4" value="2" step="1" oninput="updateAnxietyLabel(this.value)" style="width:100%;accent-color:var(--coral);">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--soft);margin-top:2px;"><span>😌 挺淡定的</span><span>😰 非常焦虑</span></div>
         </div>
       </div>
@@ -742,12 +742,14 @@ function setOwnership(type) {
   var ar = document.getElementById('anxiety-row'); if (ar) ar.style.display = (type === 'holding') ? 'block' : 'none';
 }
 function updateAnxietyLabel(val) {
-  var labels = {1:'😌 挺淡定的',2:'😌 挺淡定的',3:'😌 挺淡定的',4:'🤔 有点焦虑',5:'🤔 有点焦虑',6:'🤔 有点焦虑',7:'😟 挺焦虑的',8:'😟 挺焦虑的',9:'😰 非常焦虑',10:'😰 非常焦虑'};
+  var labels = {1:'😌 挺淡定的',2:'🤔 有点焦虑',3:'😟 挺焦虑的',4:'😰 非常焦虑'};
   document.getElementById('anxiety-label').textContent = labels[val] || '';
 }
 function getAnxiety() {
   var slider = document.getElementById('anxiety-slider');
-  return slider ? parseInt(slider.value) : 5;
+  var val = slider ? parseInt(slider.value) : 2;
+  // Convert 1-4 to 1-10 scale for quote selection
+  return val * 2.5; // 1→2.5, 2→5, 3→7.5, 4→10
 }
 
 function quickStart(company) {
