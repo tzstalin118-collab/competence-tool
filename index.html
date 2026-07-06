@@ -451,19 +451,22 @@ body {
         </div>
       </div>
 
-      <div style="margin-bottom:18px;">
-        <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">你的状态</label>
-        <div style="display:flex;gap:10px;">
-          <button type="button" id="btn-holding" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('holding')" style="flex:1;">📈 我已持有</button>
-          <button type="button" id="btn-researching" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
-        </div>
-        <div id="anxiety-row" style="display:none;margin-top:12px;">
-          <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px;display:block;">焦虑程度</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(1,this)">😌 挺淡定的</button>
-            <button type="button" class="btn btn-outline btn-small anxiety-btn selected" onclick="selectAnxiety(2,this)">🤔 有点焦虑</button>
-            <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(3,this)">😟 挺焦虑的</button>
-            <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(4,this)">😰 非常焦虑</button>
+      <!-- 持有状态 & 焦虑度 — 暂时隐藏，需恢复时去掉外层 div -->
+      <div style="display:none;">
+        <div style="margin-bottom:18px;">
+          <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">你的状态</label>
+          <div style="display:flex;gap:10px;">
+            <button type="button" id="btn-holding" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('holding')" style="flex:1;">📈 我已持有</button>
+            <button type="button" id="btn-researching" class="btn btn-outline btn-small btn-ownership" onclick="setOwnership('researching')" style="flex:1;">🔍 我正在研究</button>
+          </div>
+          <div id="anxiety-row" style="display:none;margin-top:12px;">
+            <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px;display:block;">焦虑程度</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(1,this)">😌 挺淡定的</button>
+              <button type="button" class="btn btn-outline btn-small anxiety-btn selected" onclick="selectAnxiety(2,this)">🤔 有点焦虑</button>
+              <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(3,this)">😟 挺焦虑的</button>
+              <button type="button" class="btn btn-outline btn-small anxiety-btn" onclick="selectAnxiety(4,this)">😰 非常焦虑</button>
+            </div>
           </div>
         </div>
       </div>
