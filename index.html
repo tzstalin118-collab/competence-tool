@@ -365,6 +365,23 @@ body {
   color: var(--soft); margin-top: 28px; margin-bottom: 10px; padding-bottom: 8px;
   border-bottom: 1px solid var(--hairline);
 }
+.share-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: var(--dark); color: #fff; cursor: pointer; border: none;
+  font-family: var(--font); transition: all 0.15s; margin-top: 10px;
+}
+.share-btn:hover { background: #333; }
+.share-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.75); z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.share-overlay img { max-width: 92vw; max-height: 72vh; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+.share-overlay .close-btn {
+  padding: 12px 30px; background: #fff; border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 600; cursor: pointer; font-family: var(--font);
+}
 
 /* ═══════════ MOBILE FIXES ═══════════ */
 @media (max-width: 500px) {
@@ -547,6 +564,7 @@ body {
         <div class="result-title" id="result-title"></div>
         <div class="result-subtitle" id="result-subtitle"></div>
         <div class="result-mode-badge" id="result-mode-badge"></div>
+        <button class="share-btn" id="share-btn" onclick="generateShareCard()" style="display:none;">📤 分享成绩</button>
       </div>
 
       <div id="takeaway"></div>
@@ -1460,6 +1478,7 @@ function renderResults() {
     '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
 
   document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
+  document.getElementById('share-btn').style.display = '';
 
   // Three-takeaway: computed from dimension scores (no AI)
   var ds = r._dimScores || {};
@@ -1758,6 +1777,98 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════
+// SHARE CARD GENERATION
+// ═══════════════════════════════════════
+function generateShareCard() {
+  var r = state.results;
+  var company = state.company;
+  var score = r.weightedScore || 0;
+  var tag = score >= 85 ? '你已经懂了' : score >= 70 ? '还差一口气' : score >= 55 ? '有点模糊' : '需要从头来';
+  var isQuick = state.mode === 'quick';
+
+  var canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 800;
+  var ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 600, 800);
+
+  // Top accent bar
+  var barColor = score >= 85 ? '#5db872' : score >= 70 ? '#e8a55a' : score >= 55 ? '#cc785c' : '#c64545';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(0, 0, 600, 6);
+
+  // Company name
+  ctx.fillStyle = '#141413';
+  ctx.font = 'bold 28px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(company, 300, 60);
+
+  // Score
+  ctx.fillStyle = barColor;
+  ctx.font = 'bold 90px "Inter","PingFang SC",sans-serif';
+  ctx.fillText(score, 300, 170);
+  ctx.font = '22px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('分', 300, 205);
+
+  // Grade tag
+  ctx.font = '18px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillStyle = '#6c6a64';
+  ctx.fillText(tag + ' · 能力圈诊断', 300, 240);
+
+  // Copy radar chart onto canvas
+  var radarCanvas = document.getElementById('radar-chart');
+  if (radarCanvas && window._radarChart) {
+    try {
+      var radarImg = radarCanvas.toDataURL('image/png');
+      var img = new Image();
+      img.src = radarImg;
+      // Draw synchronously since canvas is already rendered
+      ctx.drawImage(radarCanvas, 90, 270, 420, 320);
+    } catch(e) { /* radar unavailable, skip */ }
+  }
+
+  // Bottom section
+  var qrY = 620;
+  ctx.fillStyle = '#faf9f5';
+  ctx.fillRect(0, qrY - 10, 600, 180);
+
+  // QR code
+  var qrImg = new Image();
+  qrImg.crossOrigin = 'anonymous';
+  qrImg.onload = function() {
+    ctx.drawImage(qrImg, 210, qrY, 100, 100);
+    ctx.fillStyle = '#6c6a64';
+    ctx.font = '13px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('扫码测你的能力圈', 260, qrY + 120);
+    ctx.fillText('zhendongle.com', 260, qrY + 140);
+    showShareOverlay(canvas);
+  };
+  qrImg.onerror = function() { showShareOverlay(canvas); };
+  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://zhendongle.com';
+}
+
+function showShareOverlay(canvas) {
+  var existing = document.getElementById('share-overlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'share-overlay';
+  overlay.className = 'share-overlay';
+  var img = document.createElement('img');
+  img.src = canvas.toDataURL('image/png');
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'close-btn';
+  closeBtn.textContent = '长按图片保存 → 关闭';
+  closeBtn.onclick = function() { overlay.remove(); };
+  overlay.appendChild(img);
+  overlay.appendChild(closeBtn);
+  document.body.appendChild(overlay);
+}
 
 // Critical answer submission
 async function submitCriticalAnswer() {
