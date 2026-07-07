@@ -113,7 +113,7 @@ body {
 .btn-primary:disabled { background: #d4a99a; cursor: not-allowed; }
 .btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--hairline); }
 .btn-outline:hover { background: var(--canvas); }
-.btn-small { width: auto; padding: 8px 18px; font-size: 13px; }
+.btn-small { width: auto; padding: 8px 18px; font-size: 13px; white-space: nowrap; }
 .btn-skip {
   width: auto; padding: 8px 16px; font-size: 13px; font-weight: 500;
   color: var(--soft); background: none; border: none; cursor: pointer;
@@ -385,6 +385,8 @@ body {
   .result-score-circle { width: 80px; height: 80px; }
   .score-big { font-size: 30px; }
   .radar-container { max-width: 280px; }
+  .btn-small { padding: 8px 12px; font-size: 12px; }
+  #btn-prev, #btn-next { padding: 10px 12px; }
 }
 
 
@@ -674,11 +676,11 @@ body {
       <div class="insight-box insight-key" id="insight-key"></div>
       <div class="insight-box insight-detail" id="insight-detail"></div>
 
+      <div id="map-entry-result" style="display:none;"></div>
+
       <div id="detail-sections"></div>
 
       <div id="critical-question"></div>
-
-      <div id="map-entry-result" style="display:none;"></div>
 
       <div class="footer-actions">
         <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:10px;">再测一家热门公司</div>
