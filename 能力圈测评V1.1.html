@@ -542,7 +542,7 @@ body {
   <div class="app-header" id="app-header">
     <div class="badge"><span class="badge-dot"></span>商业认知自测</div>
     <h1>你真的懂这家公司吗？</h1>
-    <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题 · 快速诊断你的商业认知</p>
+    <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题 · 快速评估你的商业认知</p>
   </div>
 
   <!-- ═══════ SCREEN: INPUT ═══════ -->
@@ -583,7 +583,7 @@ body {
         </div>
       </div>
 
-      <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">诊断模式</label>
+      <label style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:block;">评估模式</label>
       <div class="mode-cards">
         <div class="mode-card selected" id="mode-quick" onclick="selectMode('quick')">
           <div class="mode-icon">⚡</div>
@@ -607,7 +607,7 @@ body {
       </div>
 
       <button class="btn btn-primary" id="btn-start" onclick="startDiagnosis()">
-        <span>开始诊断</span>
+        <span>开始评估</span>
         <span style="font-size:18px;">→</span>
       </button>
       <p style="text-align:center;font-size:11px;color:var(--soft);margin-top:16px;line-height:1.5;">本工具仅为商业认知自测，用于检验个人对企业的理解深度，不构成任何决策建议。<br>我们不会存储您的任何个人信息，所有数据仅在当前会话中处理。</p>
@@ -619,7 +619,7 @@ body {
     <div class="card-body">
       <div class="loading-state">
         <div class="loading-spinner"></div>
-        <div class="loading-text" id="loading-q-title">AI 正在为你诊断……</div>
+        <div class="loading-text" id="loading-q-title">AI 正在为你评估……</div>
         <div class="loading-sub" id="loading-company-label"></div>
         <div id="loading-steps" style="text-align:left;max-width:280px;margin:20px auto 0;font-size:14px;color:var(--muted);line-height:2.4;">
           <div id="ls-0">⏳ 识别公司信息</div>
@@ -1328,7 +1328,7 @@ function renderOpenEnded(q) {
     <div class="question-text">${d.question}</div>
     ${d.context ? '<div class="question-context">💡 ' + d.context + '</div>' : ''}
     <div class="input-group" style="margin-top:14px;">
-      <label>你的回答（可选，跳过不影响快速诊断结果）</label>
+      <label>你的回答（可选，跳过不影响快速评估结果）</label>
       <textarea id="answer-input" rows="4" placeholder="打字麻烦就跳过，点"跳过简答"继续……">${d.answer}</textarea>
     </div>
   `;
@@ -1474,7 +1474,7 @@ async function submitDiagnosis() {
       '【简答' + (i+1) + ' · ' + o.dimension + '】\n问：' + o.question + '\n答：' + (o.answer || '（未作答）')
     ).join('\n\n');
 
-    const modeInfo = state.mode === 'quick' ? '快速诊断（仅选择题）' : '深度诊断（选择题 + 简答题）';
+    const modeInfo = state.mode === 'quick' ? '快速评估（仅选择题）' : '深度评估（选择题 + 简答题）';
     var correctRate = mcqTotal > 0 ? Math.round(mcqCorrect/mcqTotal*100) : 0;
 
     // Phase 1: Core — fast
@@ -1703,7 +1703,7 @@ function renderResults() {
   var sectionHeader = function(title) { return '<div class="section-header">' + title + '</div>'; };
 
   const modeBadge = document.getElementById('result-mode-badge');
-  modeBadge.textContent = isQuick ? '⚡ 快速诊断（仅选择题）' : '🔬 深度诊断';
+  modeBadge.textContent = isQuick ? '⚡ 快速评估（仅选择题）' : '🔬 深度评估';
   modeBadge.style.background = isQuick ? 'var(--card)' : 'var(--amber-bg)';
   modeBadge.style.color = isQuick ? 'var(--muted)' : 'var(--amber)';
 
