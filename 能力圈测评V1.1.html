@@ -1655,7 +1655,7 @@ function renderResults() {
   const r = state.results;
   const isQuick = state.mode === 'quick';
 
-  // ── 加权百分制评分 ──
+  // ── 认知匹配度 ──
   var circleColor, displayScore, gradeTag;
   if (isQuick) {
     displayScore = r.weightedScore || 0;
@@ -1667,13 +1667,14 @@ function renderResults() {
     var weightedMax = (8+7+7+6+5) * 10;
     displayScore = weightedMax > 0 ? Math.round((weightedSum / weightedMax) * 100) : 0;
   }
-  if (displayScore >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
-  else if (displayScore >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
-  else if (displayScore >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
-  else                         { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
+  if (displayScore >= 85)      { circleColor = 'var(--green)'; gradeTag = '高匹配度'; }
+  else if (displayScore >= 70) { circleColor = 'var(--amber)'; gradeTag = '中等匹配度'; }
+  else if (displayScore >= 55) { circleColor = 'var(--coral)'; gradeTag = '较低匹配度'; }
+  else                         { circleColor = 'var(--red)';    gradeTag = '需深入了解'; }
 
   // 大字数字 + 小字评语
   document.getElementById('score-grade').innerHTML =
+    '<div style="font-size:14px;font-weight:500;color:var(--muted);margin-bottom:4px;">认知匹配度</div>' +
     '<div style="font-size:56px;font-weight:700;letter-spacing:-1.5px;line-height:1;color:' + circleColor + ';">' + displayScore + '<span style="font-size:22px;font-weight:500;"> 分</span></div>' +
     '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
 

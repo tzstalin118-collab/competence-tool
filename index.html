@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>能力圈诊断工具 · 你真的懂这家公司吗？</title>
+<title>商业认知自测 · 你真的懂这家公司吗？</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -540,7 +540,7 @@ body {
 
   <!-- ═══════ HEADER ═══════ -->
   <div class="app-header" id="app-header">
-    <div class="badge"><span class="badge-dot"></span>能力圈诊断</div>
+    <div class="badge"><span class="badge-dot"></span>商业认知自测</div>
     <h1>你真的懂这家公司吗？</h1>
     <p class="sub">基于巴菲特、芒格、段永平的能力圈框架<br>15 道选择题 · 快速诊断你的商业认知</p>
   </div>
@@ -601,7 +601,7 @@ body {
 
       <div class="map-nav-row" id="map-nav-home" style="display:none;" onclick="showMap()">
         <span class="map-nav-icon">📊</span>
-        <span class="map-nav-text">查看我的能力圈地图</span>
+        <span class="map-nav-text">查看我的商业认知地图</span>
         <span class="map-nav-badge" id="map-nav-count">0</span>
         <span class="map-nav-arrow">→</span>
       </div>
@@ -705,7 +705,7 @@ body {
       <div class="map-header-row">
         <span class="map-back" onclick="showScreen('screen-input');refreshHomeMapEntry();">&larr;</span>
         <div class="map-title-section">
-          <div class="map-title">我的能力圈地图</div>
+          <div class="map-title">我的商业认知地图</div>
           <div class="map-subtitle" id="map-subtitle">已测 0 家公司</div>
         </div>
       </div>
@@ -1655,7 +1655,7 @@ function renderResults() {
   const r = state.results;
   const isQuick = state.mode === 'quick';
 
-  // ── 加权百分制评分 ──
+  // ── 认知匹配度 ──
   var circleColor, displayScore, gradeTag;
   if (isQuick) {
     displayScore = r.weightedScore || 0;
@@ -1667,17 +1667,18 @@ function renderResults() {
     var weightedMax = (8+7+7+6+5) * 10;
     displayScore = weightedMax > 0 ? Math.round((weightedSum / weightedMax) * 100) : 0;
   }
-  if (displayScore >= 85)      { circleColor = 'var(--green)'; gradeTag = '你已经懂了'; }
-  else if (displayScore >= 70) { circleColor = 'var(--amber)'; gradeTag = '还差一口气'; }
-  else if (displayScore >= 55) { circleColor = 'var(--coral)'; gradeTag = '有点模糊'; }
-  else                         { circleColor = 'var(--red)';    gradeTag = '需要从头来'; }
+  if (displayScore >= 85)      { circleColor = 'var(--green)'; gradeTag = '高匹配度'; }
+  else if (displayScore >= 70) { circleColor = 'var(--amber)'; gradeTag = '中等匹配度'; }
+  else if (displayScore >= 55) { circleColor = 'var(--coral)'; gradeTag = '较低匹配度'; }
+  else                         { circleColor = 'var(--red)';    gradeTag = '需深入了解'; }
 
   // 大字数字 + 小字评语
   document.getElementById('score-grade').innerHTML =
+    '<div style="font-size:14px;font-weight:500;color:var(--muted);margin-bottom:4px;">认知匹配度</div>' +
     '<div style="font-size:56px;font-weight:700;letter-spacing:-1.5px;line-height:1;color:' + circleColor + ';">' + displayScore + '<span style="font-size:22px;font-weight:500;"> 分</span></div>' +
     '<div style="font-size:14px;font-weight:500;margin-top:6px;color:' + circleColor + ';">' + gradeTag + '</div>';
 
-  document.getElementById('result-title').textContent = `${state.company} · 能力圈诊断报告`;
+  document.getElementById('result-title').textContent = `${state.company} · 商业认知自测报告`;
 
   // Three-takeaway: computed from dimension scores (no AI)
   var ds = r._dimScores || {};
@@ -2039,7 +2040,7 @@ function renderMapEntryOnResult() {
     '<div class="map-entry-left">' +
     '<span class="map-entry-icon">📊</span>' +
     '<div>' +
-    '<div class="map-entry-title">查看能力圈地图</div>' +
+    '<div class="map-entry-title">查看商业认知地图</div>' +
     '<div class="map-entry-sub">' + state.company + ' 已加入。已测 ' + count + ' 家。' + remaining + '</div>' +
     '</div></div>' +
     '<span class="map-entry-arrow">→</span>' +
@@ -2066,7 +2067,7 @@ function renderMapContent(companies, names) {
       '<div class="map-empty-state">' +
       '<div class="map-empty-icon">🗺️</div>' +
       '<div class="map-empty-text">还没有任何诊断记录</div>' +
-      '<div class="map-empty-sub">完成第一次诊断后，你的能力圈地图会在这里出现。</div>' +
+      '<div class="map-empty-sub">完成第一次诊断后，你的商业认知地图会在这里出现。</div>' +
       '<button class="btn btn-primary" onclick="showScreen(\'screen-input\');refreshHomeMapEntry();">开始第一次诊断 →</button>' +
       '</div>';
     document.getElementById('map-subtitle').textContent = '已测 0 家公司';
@@ -2159,9 +2160,9 @@ function renderCompanyCard(item, bucketClass) {
 function generateMapSuggestion(total, greenCount, amberCount, redCount) {
   var suggestion = '';
   if (total === 1) {
-    suggestion = '单独一个数据点看不出边界。<strong>再测 2 家公司</strong>，能力圈地图开始成形。';
+    suggestion = '单独一个数据点看不出边界。<strong>再测 2 家公司</strong>，商业认知地图开始成形。';
   } else if (total < 3) {
-    suggestion = '你的能力圈地图还在成形中。<strong>再测 ' + (3 - total) + ' 家</strong>，边界会更清晰。';
+    suggestion = '你的商业认知地图还在成形中。<strong>再测 ' + (3 - total) + ' 家</strong>，边界会更清晰。';
   } else if (total < 5) {
     if (greenCount === total) {
       suggestion = '你测的 ' + total + ' 家公司全部在能力圈之内。这可能说明你确实很懂，也可能说明你还没触达边界。<strong>测一家你不太确定的公司试试。</strong>';
@@ -2191,7 +2192,7 @@ function toggleMapManage() {
 }
 
 function removeCompany(company) {
-  if (!confirm('确定要把 "' + company + '" 从能力圈地图中移除吗？')) return;
+  if (!confirm('确定要把 "' + company + '" 从商业认知地图中移除吗？')) return;
   deleteFromHistory(company);
   showMap();
   refreshHomeMapEntry();
